@@ -285,6 +285,14 @@ and print out the uncompressed output to standard output using **write()**.
   originally input into **wzip** is lost). The same thing holds for
   **wunzip**. 
 
+## Autograding
+
+We provide all of the test cases for this project, but for future
+projects you'll have to write your own.
+
+When you submit your project via gradescope, you will turn in four
+files: `wcat.cpp`, `wgrep.cpp`, `wzip.cpp`, and `wunzip.cpp`.
+
 
 ### Footnotes
 
