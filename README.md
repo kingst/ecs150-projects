@@ -8,7 +8,7 @@ Realize the best thing you can do to learn to program in any environment is to
 program **a lot**. These small projects are only the beginning of that
 journey; you'll have to do more on your own to truly become proficient.
 
-* [Unix Utilities](project1)(initial-utilities) (cat, grep, zip, unzip)
+* [Unix Utilities](project1)
 
 
 Tip of the hat to Remzi and Andrea Arpaci-Dusseau for the amazing
