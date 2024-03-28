@@ -9,7 +9,7 @@ program **a lot**. These small projects are only the beginning of that
 journey; you'll have to do more on your own to truly become proficient.
 
 * [Unix Utilities](project1)
-
+* [Unix Shell](project2)
 
 Tip of the hat to Remzi and Andrea Arpaci-Dusseau for the amazing
 [textbook](https://pages.cs.wisc.edu/~remzi/OSTEP/) and
