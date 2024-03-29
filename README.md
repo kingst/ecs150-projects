@@ -10,8 +10,9 @@ journey; you'll have to do more on your own to truly become proficient.
 
 * [Unix Utilities](project1)
 * [Unix Shell](project2)
+* [Concurrent Web Server](project3)
 
 Tip of the hat to Remzi and Andrea Arpaci-Dusseau for the amazing
 [textbook](https://pages.cs.wisc.edu/~remzi/OSTEP/) and
 [projects](https://github.com/remzi-arpacidusseau/ostep-projects),
-some of which we borrow from heavily.
+which we borrow from heavily.
