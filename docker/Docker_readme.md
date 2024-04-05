@@ -3,7 +3,7 @@
 
 In ECS 150 we’re going to use Docker to help make sure that your project development environment matches what you’ll have when we autograde your homework in Gradescope. By ensuring that the environments are the same, we will eliminate a large class of difficult-to-debug issues that come from inconsistencies. This document outlines the basics of how to get started using Docker on your computer.
 
-**Install Docker **using the instructions [here](https://docs.docker.com/get-docker/). There are two installation methods listed, both are viable and will install the Docker CLI.
+**Install Docker** using the instructions [here](https://docs.docker.com/get-docker/). There are two installation methods listed, both are viable and will install the Docker CLI.
 
 **Validate Docker installation** by typing ‘docker’ in the command line.
 
@@ -42,8 +42,7 @@ What it does → ‘docker build’ creates a docker image with the name after �
 ![alt_text](images/image2.png "image_tooltip")
 
 
-2. **docker run -it &lt;name of the image> \
-**
+2. **docker run -it &lt;name of the image>**
 
     What it does → ‘docker run’ will now run the commands specified either in the Dockerfile or in the ‘docker run’ [options](https://docs.docker.com/reference/cli/docker/container/run/), this is currently set to run a bash shell by default to give you access to a terminal on run. The ‘-it’ is a mix of two tags ‘-i’ and ‘-t’ which make the container interactive and specify the tag/name, of the image respectively.
 
