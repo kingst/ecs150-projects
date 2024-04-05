@@ -285,13 +285,17 @@ and print out the uncompressed output to standard output using **write()**.
   originally input into **wzip** is lost). The same thing holds for
   **wunzip**. 
 
-## Autograding
+## Docker and Autograding
 
 We provide all of the test cases for this project, but for future
 projects you'll have to write your own.
 
-When you submit your project via gradescope, you will turn in four
+When you submit your project via Gradescope (check Canvas for the link to this
+project's autograder), you will turn in four
 files: `wcat.cpp`, `wgrep.cpp`, `wzip.cpp`, and `wunzip.cpp`.
+
+To ensure consistency between your development environemnt and the autograder
+please use Docker ([instructions](../docker/Docker_readme.md)).
 
 
 ### Footnotes
