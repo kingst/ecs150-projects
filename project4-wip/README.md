@@ -133,7 +133,7 @@ that if your system crashes your file system is always correct.
 
 Importantly, you cannot change the file-system on-disk format.
 
-## Disk writes ordering for correctness
+## Disk write ordering for correctness
 To read data, you are welcome to make extra disk reads in and make them in any
 order to implement your file system functions. In fact, to help simplify your
 implementation we encorage you to read the entire inode table (region), data
@@ -147,6 +147,16 @@ important for correctness. As a general principle, you need to make sure that
 your file system is always in a consistent state after ALL disk writes. You can
 get a crash at any time, so making sure that your disk is always consistent and
 correct is an important part of this project.
+
+Some important points of consistency are (1) making sure that all blocks in use
+are marked as being allocated in the inode and data bitmaps and (2) All directories
+have two default entires, "." and ".." which refer to itself and its parent directory
+respectively.
+
+In our system we don't have a notion of appending or modifying data, conceptually we
+overwrite all data when we store something in our system. A sound strategy is to
+create new data and then as a final write update references so that they point to
+this new data.
 
 ## Caching for performance
 
