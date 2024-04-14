@@ -133,6 +133,21 @@ that if your system crashes your file system is always correct.
 
 Importantly, you cannot change the file-system on-disk format.
 
+## Disk writes ordering for correctness
+To read data, you are welcome to make extra disk reads in and make them in any
+order to implement your file system functions. In fact, to help simplify your
+implementation we encorage you to read the entire inode table (region), data
+bitmap, and inode bitmap structures when you need to access these. Although these
+structures can span multiple disk blocks, to help simplify your implementation
+we encourage you to read these data structures in their entirety when you need
+to use them.
+
+For disk writes, however, the order that you write data to disk is extremely
+important for correctness. As a general principle, you need to make sure that
+your file system is always in a consistent state after ALL disk writes. You can
+get a crash at any time, so making sure that your disk is always consistent and
+correct is an important part of this project.
+
 ## Caching for performance
 
 On modern computer systems, disk I/O is slow relative to the
