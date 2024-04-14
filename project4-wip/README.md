@@ -144,6 +144,7 @@ bitmap is set, it will look like this in hex:
 byte position:  0  1
 hex value:     01 00
 
+bit position   0                               15
 bit value:     1 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0
 ```
 
@@ -153,6 +154,7 @@ and if the last bit is set it will look like this in hex:
 byte position:  0  1
 hex value:     00 80
 
+bit position   0                               15
 bit value:     0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 1
 ```
 
