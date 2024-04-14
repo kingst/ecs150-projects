@@ -133,6 +133,25 @@ that if your system crashes your file system is always correct.
 
 Importantly, you cannot change the file-system on-disk format.
 
+## Bitmaps for block allocation
+We use on-disk bitmaps to keep track of entries (inodes and data blocks) that
+the file system has allocated. For our bitmaps for each byte, the least
+significant bit (LSB) is considered the first bit, and the most significant
+bit (MSB) is considered the last bit. So if the first bit of a four byte
+bitmap is set, it will look like this in hex:
+
+```
+byte position:  0  1  2  3
+hex value:     01 00 00 00
+```
+
+and if the last bit is set it will look like this in hex:
+
+```
+byte position:  0  1  2  3
+hex value:     00 00 00 80
+```
+
 ## Disk write ordering for correctness
 To read data, you are welcome to make extra disk reads in and make them in any
 order to implement your file system functions. In fact, to help simplify your
