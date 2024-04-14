@@ -137,19 +137,23 @@ Importantly, you cannot change the file-system on-disk format.
 We use on-disk bitmaps to keep track of entries (inodes and data blocks) that
 the file system has allocated. For our bitmaps for each byte, the least
 significant bit (LSB) is considered the first bit, and the most significant
-bit (MSB) is considered the last bit. So if the first bit of a four byte
+bit (MSB) is considered the last bit. So if the first bit of a two byte
 bitmap is set, it will look like this in hex:
 
 ```
-byte position:  0  1  2  3
-hex value:     01 00 00 00
+byte position:  0  1
+hex value:     01 00
+
+bit value:     1 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0
 ```
 
 and if the last bit is set it will look like this in hex:
 
 ```
-byte position:  0  1  2  3
-hex value:     00 00 00 80
+byte position:  0  1
+hex value:     00 80
+
+bit value:     0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 1
 ```
 
 ## Disk write ordering for correctness
