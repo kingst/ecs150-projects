@@ -5,7 +5,7 @@ FROM ubuntu:22.04
 RUN apt-get update -y
 
 #Installing libraries
-RUN apt-get install -y build-essential g++ libstdc++6 cmake clang lldb git
+RUN apt-get install -y build-essential g++ libstdc++6 cmake clang lldb git libssl-dev vim gdb lynx
 
 #Add extra libraries to install here
 # RUN apt-get install -y valgrind
