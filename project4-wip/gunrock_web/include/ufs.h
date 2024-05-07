@@ -15,13 +15,14 @@
 // Note: Bitmap indexes identify disk blocks relative to the start of a region.
 
 typedef struct {
-    int type;   // MFS_DIRECTORY or MFS_REGULAR
+    int type;   // UFS_DIRECTORY or UFS_REGULAR
     int size;   // bytes
     unsigned int direct[DIRECT_PTRS];
 } inode_t;
 
+#define DIR_ENT_NAME_SIZE (28)
 typedef struct {
-    char name[28];  // up to 28 bytes of name in directory (including \0)
+    char name[DIR_ENT_NAME_SIZE];  // up to 28 bytes of name in directory (including \0)
     int  inum;      // inode number of entry (-1 means entry not used)
 } dir_ent_t;
 

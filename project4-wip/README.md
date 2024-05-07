@@ -6,16 +6,17 @@ have to build the rest.
 
 The goals of this project are:
 - To learn the basics of on-disk structures for file systems
-- To learn about caching correctness and performance
+- To learn about file system internals
 - To learn about distributed storage systems
 
-This project consists of three main parts: on-disk storage, a disk
-block caching layer, and synchronized concurrent access. We recommend
-implementing your server in this order where you ensure that you have
+This project consists of three main parts: [reading on-disk storage using command line utilities](#file-system-utilities),
+a [local file system](#local-file-system), and using the local file system to impelemnt a [distributed
+file system](#distributed-file-system-1). We recommend implementing your server in this order where you ensure that you have
 a solid foundation before moving on to the next part.
 
-## Distributed File System Background
+## Distributed File System
 
+### Background
 The main idea behind a distribute file system is that you can have
 multiple clients access the same file system at the same time. One
 popular distributed file system, which serves as inspiration for this
@@ -26,15 +27,10 @@ of the modern apps we all use every day.
 
 Like local file systems, distributed file systems support a number of
 high level file system operations. In this project you'll implement
-`read()`, `write()`, `delete()`, and `move()` operations.
+`read()`, `write()`, and `delete()` operations on objects using
+HTTP APIs.
 
-One difficulty with distributed file systems is that clients connect
-concurrently and over a network, so dealing with multiple clients
-accessing the same objects at the same time must be predictable. This
-difficulty is why we provide clear semantics for all of the operations
-that your file system will support.
-
-## HTTP/REST API
+### HTTP/REST API
 
 In your distributed file system you will have two different entities:
 `files` and `directories`. You will access these entities using
@@ -47,7 +43,7 @@ contains the entire contents of the file. If the file already exists,
 the PUT call overwrites the contents with the new data sent via the
 body.
 
-In the system directories are created implicitly. If a client PUTs a
+In the system, directories are created implicitly. If a client PUTs a
 file located at `/ds3/a/b/c.txt` and directories `a` and `b` do not
 already exist, you will create them as a part of handling the
 request. If one of the directories on the path exists as a file
@@ -56,35 +52,49 @@ already, like `/a/b`, then it is an error.
 To read a file, you use the HTTP `GET` method, specifying the file
 location as the path of your URL and your server will return the
 contents of the file as the body in the response. To read a directory,
-you also use the HTTP `GET` method, but directories return directory
-entries. To encode directory entries, you put each directory entry on
-a new line and use web form encoding, where you separate keys and
-values using `=`, omitting the entries for `.` and `..`. For example,
-GET on `/ds3/a/b` will return:
+you also use the HTTP `GET` method, but directories list the entries
+in a directory.  To encode directory entries, you put each directory
+entry on a new line and regular files are listed directly, and
+directories are listed with a trailing "/". For `GET` on a directory
+omit the entries for `.` and `..`. For example, `GET` on `/ds3/a/b` will
+return:
 
-`type=1&name=c.txt`
+`c.txt`
 
-And a GET on `/ds3/a/` will return:
+And `GET` on `/ds3/a/` will return:
 
-`type=0&name=b`
+`b/`
 
-Check out the `WwwFormEncodedDict` class to help creating and parsing
-these key/value pairs.
+The listed entries should be sorted using standard string comparison
+sorting functions.
 
 To delete a file, you use the HTTP `DELETE` method, specifying the
 file location as the path of your URL. To delete a directory, you also
-use DELETE but if you try to delete a directory that is not empty it
+use `DELETE` but deleting a directory that is not empty it
 is an error.
 
-To move a file or directory, you use the HTTP `MOVE` method. Since
-this HTTP method is non-standard, you need to add it to gunrock
-web. For this call you specify the file or directory you want to move
-in the URL and include a header name `x-ds3-destination` and set the
-value to the path where you want to move your file or directory
-to. The same rules creating a file and dealing with existing resources
-on your destination path apply.
+You will implement your API handlers in [DistributedFileSystemService.cpp](gunrock_web/DistributedFileSystemService.cpp).
 
-## On-Disk File System: A Basic Unix File System
+Since Gunrock is a HTTP server, you can use command line utilities,
+like cURL to help test it out. Here are a few example cURL command:
+
+```bash
+% curl -X PUT -d "file contents" http://localhost:8080/ds3/a/b/c.txt 
+% curl http://localhost:8080/ds3/a/b/c.txt                          
+file contents
+% curl http://localhost:8080/ds3/a/b/     
+c.txt
+% curl http://localhost:8080/ds3/a/b 
+c.txt
+% curl http://localhost:8080/ds3/a  
+b/
+% curl -X DELETE http://localhost:8080/ds3/a/b/c.txt
+% curl http://localhost:8080/ds3/a/b/               
+% 
+```
+
+## Local file system
+### On-Disk File System: A Basic Unix File System
 
 The on-disk file system structures follow that of the
 very simple file system discussed
@@ -133,7 +143,13 @@ that if your system crashes your file system is always correct.
 
 Importantly, you cannot change the file-system on-disk format.
 
-## Bitmaps for block allocation
+For more detailed documentation on the local file system specification,
+please see [LocalFileSystem.h](gunrock_web/include/LocalFileSystem.h)
+and the stub [LocalFileSystem.cpp](gunrock_web/LocalFileSystem.cpp). Also,
+please see [Disk.h](gunrock_web/Disk.h) for the interface for accessing
+the disk.
+
+### Bitmaps for block allocation
 We use on-disk bitmaps to keep track of entries (inodes and data blocks) that
 the file system has allocated. For our bitmaps for each byte, the least
 significant bit (LSB) is considered the first bit, and the most significant
@@ -158,8 +174,28 @@ bit position   0                               15
 bit value:     0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 1
 ```
 
-## Disk write ordering for correctness
-To read data, you are welcome to make extra disk reads in and make them in any
+### LocalFileSystem `write` and `read` semantics
+In our file system, we don't have a notion of appending or modifying data.
+Conceptually, when we get a `write` call we overwrite the entire contents
+of the file with the new contents of the file, and write calls specify
+the complete contents of the file.
+
+Calls to `read` always read data starting from the beginning of the file,
+but if the caller specifies a size of less than the size of the object
+then you should return only these bytes. If the caller specifies a size
+of larger than the size of the object, then you only return the bytes
+in the object.
+
+### LocalFileSystem out of storage errors
+One important class of errors that your `LocalFileSystem` needs to handle is
+out of storage errors. Out of storage errors can happen when one of the
+file system modification calls -- `create`, `write`, and `unlink` -- does not
+have enough availabe storage to complete the request. You should identify
+out of storage errors before making any writes to disk. So in other words,
+your file system should be unchanged if an out of storage error happens.
+
+### Disk write ordering for correctness
+To read data, you are welcome to make extra disk reads and make them in any
 order to implement your file system functions. In fact, to help simplify your
 implementation we encorage you to read the entire inode table (region), data
 bitmap, and inode bitmap structures when you need to access these. Although these
@@ -178,45 +214,95 @@ are marked as being allocated in the inode and data bitmaps and (2) All director
 have two default entires, "." and ".." which refer to itself and its parent directory
 respectively.
 
+When creating a new entity, you should (1) write the data to disk,
+(2) write the inode to disk, and (3) update references to the inode.
+When deleting an entity, you should do the reverse (1) remove references
+to the inode, (2) delete the inode from disk, (3) delete the data from disk.
+When allocating new blocks, make sure to write updated bitmaps to disk before
+writing data to the corresponding block.
+
+This write ordering will keep your file system in a consistent state and enable
+you to reuse high level file system functions in your implementation for other
+functions.
+
 In our system we don't have a notion of appending or modifying data, conceptually we
-overwrite all data when we store something in our system. A sound strategy is to
-create new data and then as a final write update references so that they point to
-this new data.
+overwrite all data when we store something in our system. When modifying an existing
+entity, create new data and then as a final write update references so that the inode
+points to this new data, then delete the old data as a final step.
 
-## Caching for performance
+## File system utilities
+To help debug your disk images, you will create three small command-line utilities
+that read information about a given disk image and write it out to the command line.
+We have included an example disk image and expected outputs in the [disk_testing](gunrock_web/disk_testing)
+directory, but make sure that your utilities can handle multiple different disk
+image configurations and contents.
 
-On modern computer systems, disk I/O is slow relative to the
-computation happening on a system. Every time you read a file you need
-to do two I/O operations for each level in the file hierarchy just
-to read the file.
+Note: We will only test your utilities on correct disk images -- you can assume
+that all data on disk in the test cases is consistent and correct.
 
-To improve the performance of our file system, you will implement a
-*least recently used (LRU)* in-memory cache for disk blocks. Each time
-you read or write a disk block, you will add it to your cache. Your
-cache will be a fixed size, specified on the command line of your
-server, and once your cache becomes full you will evict existing
-entries to make room for new blocks. The way that you pick the block
-to evict is by keeping track of which block in your cache was used
-least recently. Modern file systems use a more flexible method of
-caching, but for this project we'll stick with this basic cache
-allocation and policy to keep things simple.
+### The `ds3ls` utility
+The `ds3ls` utility prints the names for all of the files and directories in
+a disk image. This utility takes a single command line argument: the name of
+the disk image file to use. This program will start at the root of the file system, print
+the contents of that directory in full, and then traverse to each directory
+contained within. This process repeats in a depth-first fasion until all
+file and directory names have been printed.
 
-Although many modern file systems buffer disk writes, we will store
-any file system modifications immediately when the state of the file
-system changes.
+When printing the contents of a directory, first, print the word `Directory`
+followed by a space and then the full path for the directory you're printing,
+and ending it with a newline. Second, print each of the entries in that 
+directory. Sorted each entry using `std::strcmp` and print them in that order.
+Each entry will include the inode number, a tab, the name of the entry, and
+finishing it off with a newline. Third, print a empty line consisting of only
+a newline to finish printing the contents of the directory.
 
-## Concurrent requests
+Make sure that your solution does _not_ print the contents of `.` and `..`
+subdirectories as this action would lead to an infinitely loop.
 
-On your file system you will enable concurrent requests using a
-version of a reader/writer locking. All requests to the server must
-start in the order that their connections were `accepted` by the
-server, but they can finish in any order and you should maximize
-concurrency when possible. To support threads you will use a thread
-pool.
+After printing a directory, traverse into each subdirectory and repeat the process
+recursively in a depth-first fashion.
 
-You can have concurrent `read` requests, but `write`, `delete`, and
-`move` all modify the file system and you must enforce mutual
-exclusion on your file system. Since all requests start in order, you
-must wait until any pending requests finish before executing a file
-system modification operation. While it executes, it must complete its
-file system updates before allowing any subsequent requests to run.
+### The `ds3cat` utility
+The `ds3cat` utility prints the contents of a file to standard output. It takes
+the name of the disk image file and an inode number as the only arguments. It prints the contents of the file
+that is specified by the inode number.
+
+For this utility, first print the string `File blocks` with a newline at the end
+and then print each of the disk block numbers for the file to standard out, one
+disk block number per line. After printing the file blocks, print an empty line
+with only a newline.
+
+Next, print the string `File data` with a newline at the end and then print
+the full contents of the file to standard out. You do not need to differentiate
+between files and directories, for this utility everything is considered to be
+data and should be printed to standard out.
+
+### The `ds3bits` utility
+The `ds3bits` utility prints metadata for the file system on a disk image. It takes
+a single command line argument: the name of a disk image file.
+
+First, it prints metadata about the file system starting with the string `Super` on a
+line, then `inode_region_addr` followed by a space and then the inode region address from
+the super block. Next, it should print the string `data_region_addr` followed by a space and the
+data region address from the super block, followed by a newline. Finally, print an empty line
+with just a newline character.
+
+Next it prints the inode and data bitmaps. Each bitmap starts with a string on its own line,
+`Inode bitmap` and `Data bitmap` respectively. For each bitmap, print the byte value,
+formatted as an `unsigned int` followed by a space. For each byte in your bitmap your print
+statement might look something like this:
+
+```
+cout << (unsigned int) bitmap[idx] << " ";
+```
+
+Where each byte is followed by a space, including the last byte and after you're done printing
+all of the bytes print a single newline character.
+
+Print the indoe bitmap first, followed by blank line consisting of only a single
+newline character, then print the data bitmap.
+
+## Gradescope
+We are using Gradescope to autograde your projects. You should submit the following
+files to Gradescope: `LocalFileSystem.cpp`, `DistributedFileSystemService.cpp`,
+`ds3ls.cpp`, `ds3cat.cpp`, and `ds3bits.cpp`.

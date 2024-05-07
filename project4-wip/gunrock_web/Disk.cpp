@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 
 #include "Disk.h"
+#include "dthread.h"
 
 using namespace std;
 
@@ -75,12 +76,20 @@ void Disk::readBlock(int blockNumber, void *buffer) {
   close(fd);
 }
 
-void Disk::writeBlock(int blockNumber, void *buffer) {
+void Disk::writeBlock(int blockNumber, void *buffer) {  
   if (blockNumber < 0 || blockNumber > this->numberOfBlocks()) {
     cerr << "Invalid block number " << blockNumber << endl;
     exit(1);
   }
 
+  if (isInTransaction) {
+    struct UndoRecord undoRecord;
+    undoRecord.blockNumber = blockNumber;
+    undoRecord.blockData = new unsigned char[blockSize];
+    this->readBlock(blockNumber, undoRecord.blockData);
+    undoLog.push_front(undoRecord);
+  }
+  
   int fd = open(this->imageFile.c_str(), O_RDWR);
   if (fd < 0) {
     cerr << "Could not open image file " << this->imageFile << endl;
@@ -102,4 +111,31 @@ void Disk::writeBlock(int blockNumber, void *buffer) {
   }
   fsync(fd);
   close(fd);
+}
+
+void Disk::beginTransaction() {
+  if (isInTransaction) {
+    cerr << "You can't start a new transaction: one already exists" << endl;
+    exit(1);
+  }
+  isInTransaction = true;
+}
+
+void Disk::commit() {
+  isInTransaction = false;
+  deque<struct UndoRecord>::iterator iter;
+  for (iter = undoLog.begin(); iter != undoLog.end(); iter++) {
+    delete [] iter->blockData;
+  }
+  undoLog.clear();
+}
+
+void Disk::rollback() {
+  isInTransaction = false;
+  deque<struct UndoRecord>::iterator iter;
+  for (iter = undoLog.begin(); iter != undoLog.end(); iter++) {
+    this->writeBlock(iter->blockNumber, iter->blockData);
+    delete [] iter->blockData;
+  }
+  undoLog.clear();
 }
