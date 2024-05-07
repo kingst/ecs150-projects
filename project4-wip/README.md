@@ -1,308 +1,354 @@
-# Distributed File System
+# Gunrock Concurrent Web Server
 
-In this assignment, you will be developing a working distributed file
-server. We provide you with only the `gunrock_web` HTTP framework; you
-have to build the rest.
+This web server is a simple server used in ECS 150 for teaching about
+multi-threaded programming and operating systems. This version of the
+server can only handle one client at a time and simply serves static
+files. Also, it will close each connection after reading the request
+and responding, but generally is still HTTP 1.1 compliant.
+
+This server was written by Sam King from UC Davis and is actively
+maintained by Sam as well. The `http_parse.c` file was written by
+[Ryan Dahl](https://github.com/ry) and is licensed under the BSD
+license by Ryan. This programming assignment is from the
+[OSTEP](http://ostep.org) textbook (tip of the hat to the authors for
+writing an amazing textbook).
+
+# Quickstart
+To compile and run the server, open a terminal and execute the following commands:
+```bash
+$ cd project3
+$ make
+$ ./gunrock_web
+```
+
+To test it out, you can either open up a web browser on the same machine and give it this url `http://localhost:8080/hello_world.html` or if you want to use curl on the command line you can test it out like this:
+```bash
+$ # get a basic HTML file
+$ curl http://localhost:8080/hello_world.html
+$ # get a basic HTML file with more detailed information
+$ curl -v http://localhost:8080/hello_world.html
+$ # head a basic HTML file
+$ curl --head http://localhost:8080/hello_world.html
+$ # test out a file that does not exist (404 status code)
+$ curl -v http://localhost:8080/hello_world2.html
+$ # test out a POST, which isn't supported currently (405 status code)
+$ curl -v -X POST http://localhost:8080/hello_world.html
+```
+
+We also included a full website that you can use for testing, try pointing your browser to: `http://localhost:8080/bootstrap.html`
+
+# Overview
+
+In this assignment, you will be developing a concurrent web server. To
+simplify this project, we are providing you with the code for a non-concurrent
+(but working) web server. This basic web server operates with only a single
+thread; it will be your job to make the web server multi-threaded so that it
+can handle multiple requests at the same time.
 
 The goals of this project are:
-- To learn the basics of on-disk structures for file systems
-- To learn about file system internals
-- To learn about distributed storage systems
+- To learn the basic architecture of a simple web server
+- To learn how to add concurrency to a non-concurrent system
+- To learn how to read and modify an existing code base effectively
 
-This project consists of three main parts: [reading on-disk storage using command line utilities](#file-system-utilities),
-a [local file system](#local-file-system), and using the local file system to impelemnt a [distributed
-file system](#distributed-file-system-1). We recommend implementing your server in this order where you ensure that you have
-a solid foundation before moving on to the next part.
+Useful reading from [OSTEP](http://ostep.org) includes:
+- [Intro to threads](http://pages.cs.wisc.edu/~remzi/OSTEP/threads-intro.pdf)
+- [Using locks](https://pages.cs.wisc.edu/~remzi/OSTEP/threads-locks.pdf)
+- [Producer-consumer relationships](http://pages.cs.wisc.edu/~remzi/OSTEP/threads-cv.pdf)
+- [Server concurrency architecture](http://pages.cs.wisc.edu/~remzi/OSTEP/threads-events.pdf)
 
-## Distributed File System
+# HTTP Background
 
-### Background
-The main idea behind a distribute file system is that you can have
-multiple clients access the same file system at the same time. One
-popular distributed file system, which serves as inspiration for this
-project, is Amazon's S3 storage system. S3 is used widely and provides
-clear semantics with a simple REST/HTTP API for accessing data. With
-these basics in place, S3 provides the storage layer that powers many
-of the modern apps we all use every day.
+Before describing what you will be implementing in this project, we will
+provide a very brief overview of how a classic web server works, and the HTTP
+protocol (version 1.1) used to communicate with it; although web browsers and
+servers have [evolved a lot over the
+years](https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Evolution_of_HTTP),
+the old versions still work and give you a good start in understanding how
+things work. Our goal in providing you with a basic web server is that you can
+be shielded from learning all of the details of network connections and the
+HTTP protocol needed to do the project; however, the network code has been
+greatly simplified and is fairly understandable should you choose to to study
+it.
 
-Like local file systems, distributed file systems support a number of
-high level file system operations. In this project you'll implement
-`read()`, `write()`, and `delete()` operations on objects using
-HTTP APIs.
+Classic web browsers and web servers interact using a text-based protocol
+called **HTTP** (**Hypertext Transfer Protocol**). A web browser opens a
+connection to a web server and requests some content with HTTP. The web server
+responds with the requested content and closes the connection. The browser
+reads the content and displays it on the screen.
 
-### HTTP/REST API
+HTTP is built on top of the **TCP/IP** protocol suite provided by the
+operating system. Together, TCP and IP ensure that messages are routed to
+their correct destination, get from source to destination reliably in the face
+of failure, and do not overly congest the network by sending too many messages
+at once, among other features. To learn more about networks, take a networking
+class (or many!), or read [this free book](https://book.systemsapproach.org).
 
-In your distributed file system you will have two different entities:
-`files` and `directories`. You will access these entities using
-standard HTTP/REST network calls. All URL paths begin with `/ds3/`,
-which defines the root of your file system.
+Each piece of content on the web server is associated with a file in the
+server's file system. The simplest is *static* content, in which a client
+sends a request just to read a specific file from the server. Slightly more
+complex is *dynamic* content, in which a client requests that an executable
+file be run on the web server and its output returned to the client.
+Each file has a unique name known as a **URL** (**Universal Resource
+Locator**). 
 
-To create or update a file, use HTTP `PUT` method where the URL
-defines the file name and path and the body of your PUT request
-contains the entire contents of the file. If the file already exists,
-the PUT call overwrites the contents with the new data sent via the
-body.
+As a simple example, let's say the client browser wants to fetch static
+content (i.e., just some file) from a web server running on some machine.  The
+client might then type in the following URL to the browser:
+`http://www.cs.wisc.edu/index.html`. This URL identifies that the HTTP
+protocol is to be used, and that an HTML file in the root directory (`/`) of
+the web server called `index.html` on the host machine `www.cs.wisc.edu`
+should be fetched.
 
-In the system, directories are created implicitly. If a client PUTs a
-file located at `/ds3/a/b/c.txt` and directories `a` and `b` do not
-already exist, you will create them as a part of handling the
-request. If one of the directories on the path exists as a file
-already, like `/a/b`, then it is an error.
+The web server is not just uniquely identified by which machine it is running
+on but also the **port** it is listening for connections upon. Ports are a
+communication abstraction that allow multiple (possibly independent) network
+communications to happen concurrently upon a machine; for example, the web
+server might be receiving an HTTP request upon port 80 while a mail server is
+sending email out using port 25. By default, web servers are expected to run
+on port 80 (the well-known HTTP port number), but sometimes (as in this
+project), a different port number will be used. To fetch a file from a web
+server running at a different port number (say 8000), specify the port number
+directly in the URL, e.g., `http://www.cs.wisc.edu:8000/index.html`.
 
-To read a file, you use the HTTP `GET` method, specifying the file
-location as the path of your URL and your server will return the
-contents of the file as the body in the response. To read a directory,
-you also use the HTTP `GET` method, but directories list the entries
-in a directory.  To encode directory entries, you put each directory
-entry on a new line and regular files are listed directly, and
-directories are listed with a trailing "/". For `GET` on a directory
-omit the entries for `.` and `..`. For example, `GET` on `/ds3/a/b` will
-return:
+# The HTTP Request
 
-`c.txt`
+When a client (e.g., a browser) wants to fetch a file from a machine, the
+process starts by sending a machine a message. But what exactly is in the body
+of that message? These *request contents*, and the subsequent *reply
+contents*, are specified precisely by the HTTP protocol.
 
-And `GET` on `/ds3/a/` will return:
+Let's start with the request contents, sent from the web browser to the
+server. This HTTP request consists of a request line, followed by zero or more
+request headers, and finally an empty text line. A request line has the form:
+`method uri version`. The `method` is usually `GET`, which tells the web
+server that the client simply wants to read the specified file; however, other
+methods exist (e.g., `POST`). The `uri` is the file name, and perhaps optional
+arguments (in the case of dynamic content). Finally, the `version` indicates
+the version of the HTTP protocol that the web client is using (e.g.,
+HTTP/1.1).
 
-`b/`
+The HTTP response (from the server to the browser) is similar; it consists of
+a response line, zero or more response headers, an empty text line, and
+finally the interesting part, the response body. A response line has the form
+version `status message`. The `status` is a three-digit positive integer that
+indicates the state of the request; some common states are `200` for `OK`,
+`403` for `Forbidden` (i.e., the client can't access that file), and `404` for
+`File Not Found` (the famous error). Two important lines in the header are
+`Content-Type`, which tells the client the type of the content in the response
+body (e.g., HTML or gif or otherwise) and `Content-Length`, which indicates
+the file size in bytes.
 
-The listed entries should be sorted using standard string comparison
-sorting functions.
+For this project, you don't really need to know this information about HTTP
+unless you want to understand the details of the code we have given you. You
+will not need to modify any of the procedures in the web server that deal with
+the HTTP protocol or network connections. However, it's always good to learn
+more, isn't it?
 
-To delete a file, you use the HTTP `DELETE` method, specifying the
-file location as the path of your URL. To delete a directory, you also
-use `DELETE` but deleting a directory that is not empty it
-is an error.
+# A Basic Web Server
 
-You will implement your API handlers in [DistributedFileSystemService.cpp](gunrock_web/DistributedFileSystemService.cpp).
+The code for the web server is available in this repository.  You can compile
+the files herein by simply typing `make`. Compile and run this basic web
+server before making any changes to it! `make clean` removes .o files and
+executables and lets you do a clean build.
 
-Since Gunrock is a HTTP server, you can use command line utilities,
-like cURL to help test it out. Here are a few example cURL command:
+When you run this basic web server, you need to specify the port number that
+it will listen on; ports below number 1024 are *reserved* (see the list
+[here](https://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml))
+so you should specify port numbers that are greater than 1023 to avoid this
+reserved range; the max is 65535. Be wary: if running on a shared machine, you
+could conflict with others and thus have your server fail to bind to the
+desired port. If this happens, try a different number!
+
+When you then connect your web browser to this server, make sure that
+you specify this same port. For example, assume that you are running on
+`bumble21.cs.wisc.edu` and use port number 8003; copy your favorite HTML file
+to the directory that you start the web server from. Then, to view this file
+from a web browser (running on the same or a different machine), use the url
+`bumble21.cs.wisc.edu:8003/favorite.html`. If you run the client and web
+server on the same machine, you can just use the hostname `localhost` as a
+convenience, e.g., `localhost:8003/favorite.html`.
+
+To make the project a bit easier, we are providing you with a minimal web
+server, consisting of only a few hundred lines of C++ code. As a result, the
+server is limited in its functionality; it does not handle any HTTP requests
+other than `GET` and `HEAD`, and understands only a few content types. This web server is also
+not very robust; for example, if a web client closes its connection to the
+server, it may trip an assertion in the server causing it to exit. We do not
+expect you to fix these problems (though you can, if you like, you know, for
+fun).
+
+# Finally: Some New Functionality!
+
+In this project, you will be adding one key piece of functionality to the
+basic web server: you will make the web server multi-threaded. 
+You will also be modifying how the web server is invoked so
+that it can handle new input parameters (e.g., the number of threads to
+create).
+
+## Part 1: Multi-threaded
+ 
+The basic web server that we provided has a single thread of
+control. Single-threaded web servers suffer from a fundamental performance
+problem in that only a single HTTP request can be serviced at a time. Thus,
+every other client that is accessing this web server must wait until the
+current http request has finished; this is especially a problem if the current
+HTTP request is a long-running CGI program or is resident only on disk (i.e.,
+is not in memory). Thus, the most important extension that you will be adding
+is to make the basic web server multi-threaded.
+
+The simplest approach to building a multi-threaded server is to spawn a new
+thread for every new http request. The OS will then schedule these threads
+according to its own policy. The advantage of creating these threads is that
+now short requests will not need to wait for a long request to complete;
+further, when one thread is blocked (i.e., waiting for disk I/O to finish) the
+other threads can continue to handle other requests. However, the drawback of
+the one-thread-per-request approach is that the web server pays the overhead
+of creating a new thread on every request.
+
+Therefore, the generally preferred approach for a multi-threaded server is to
+create a fixed-size *pool* of worker threads when the web server is first
+started. With the pool-of-threads approach, each thread is blocked until there
+is an http request for it to handle. Therefore, if there are more worker
+threads than active requests, then some of the threads will be blocked,
+waiting for new HTTP requests to arrive; if there are more requests than
+worker threads, then those requests will need to be buffered until there is a
+ready thread.
+
+In your implementation, you must have a main thread that begins by creating
+a pool of worker threads, the number of which is specified on the command
+line. Your main thread is then responsible for accepting new HTTP
+connections over the network and placing the descriptor for this connection
+into a fixed-size buffer; in your implementation, the main thread
+should not read from this connection. The number of elements in the buffer is
+also specified on the command line. Note that the existing web server has a
+single thread that accepts a connection and then immediately handles the
+connection; in your web server, this thread should place the connection
+descriptor into a fixed-size buffer and return to accepting more connections.
+
+Each worker thread is able to handle requests. A
+worker thread wakes when there is an HTTP request in the queue; when there are
+multiple HTTP requests available, which request is handled depends upon the
+scheduling policy, described below. Once the worker thread wakes, it performs
+the read on the network descriptor, obtains the specified content (by either
+reading the static file or executing the CGI process), and then returns the
+content to the client by writing to the descriptor. The worker thread then
+waits for another HTTP request.
+
+Note that the main thread and the worker threads are in a producer-consumer
+relationship and require that their accesses to the shared buffer be
+synchronized. Specifically, the main thread must block and wait if the
+buffer is full; a worker thread must wait if the buffer is empty. In this
+project, you are required to use condition variables. Note: if your
+implementation performs any busy-waiting (or spin-waiting) instead, you will
+be heavily penalized.
+
+## Part 2: Scheduling Policies
+
+In this project, you will implement one scheduling
+policy. Note that when your web server has multiple worker threads running
+(the number of which is specified on the command line), you will not have any
+control over which thread is actually scheduled at any given time by the
+OS. Your role in scheduling is to determine which HTTP request should be
+handled by each of the waiting worker threads in your web server.
+
+The scheduling policy is:
+
+- **First-in-First-out (FIFO)**: When a worker thread wakes, it handles the
+first request (i.e., the oldest request) in the buffer. Note that the HTTP
+requests will not necessarily finish in FIFO order; the order in which the
+requests complete will depend upon how the OS schedules the active threads.
+
+## Security
+
+Running a networked server can be dangerous, especially if you are not
+careful. Thus, security is something you should consider carefully when
+creating a web server. One thing you should always make sure to do is not
+leave your server running beyond testing, thus leaving open a potential
+backdoor into files in your system.
+
+Your system should also make sure to constrain file requests to stay within
+the sub-tree of the file system hierarchy, rooted at the base working
+directory that the server starts in. You must take steps to ensure that
+pathnames that are passed in do not refer to files outside of this sub-tree. 
+One simple (perhaps overly conservative) way to do this is to reject any
+pathname with `..` in it, thus avoiding any traversals up the file system
+tree. More sophisticated solutions could use `chroot()` or Linux containers,
+but perhaps those are beyond the scope of the project.
+
+# Gunrock internals
+
+## Command line arguments
+Your C++ program must be invoked exactly as follows:
 
 ```bash
-% curl -X PUT -d "file contents" http://localhost:8080/ds3/a/b/c.txt 
-% curl http://localhost:8080/ds3/a/b/c.txt                          
-file contents
-% curl http://localhost:8080/ds3/a/b/     
-c.txt
-% curl http://localhost:8080/ds3/a/b 
-c.txt
-% curl http://localhost:8080/ds3/a  
-b/
-% curl -X DELETE http://localhost:8080/ds3/a/b/c.txt
-% curl http://localhost:8080/ds3/a/b/               
-% 
+$ ./gunrock_web [-p port] [-t threads] [-b buffers]
 ```
 
-## Local file system
-### On-Disk File System: A Basic Unix File System
+The command line arguments to your web server are to be interpreted as
+follows.
 
-The on-disk file system structures follow that of the
-very simple file system discussed
-[here](https://pages.cs.wisc.edu/~remzi/OSTEP/file-implementation.pdf). On-disk,
-the structures are as follows:
-- A single block (4KB) super block
-- An inode bitmap (can be one or more 4KB blocks, depending on the number of inodes)
-- A data bitmap (can be one or more 4KB blocks, depending on the number of data blocks)
-- The inode table (a multiple of 4KB-sized blocks, depending on the number of inodes)
-- The data region (some number of 4KB blocks, depending on the number of data blocks)
+- **port**: the port number that the web server should listen on; the basic web
+  server already handles this argument. Default: 8080.
+- **threads**: the number of worker threads that should be created within the web
+  server. Must be a positive integer. Default: 1.
+- **buffers**: the number of request connections that can be accepted at one
+  time. Must be a positive integer. Note that it is not an error for more or
+  less threads to be created than buffers. Default: 1.
 
-More details about on-disk structures can be found in the header
-[ufs.h](ufs.h), which you should use. Specifically, this has a very
-specific format for the super block, inode, and directory
-entries. Bitmaps just have one bit per allocated unit as described in
-the book.
-
-As for directories, here is a little more detail.  Each directory has
-an inode, and points to one or more data blocks that contain directory
-entries. Each directory entry should be simple, and consist of 32
-bytes: a name and an inode number pair. The name should be a
-fixed-length field of size 28 bytes; the inode number is just an
-integer (4 bytes). When a directory is created, it should contain two
-entries: the name `.` (dot), which refers to this new directory's
-inode number, and `..` (dot-dot), which refers to the parent
-directory's inode number. For directory entries that are not yet in
-use (in an allocated 4-KB directory block), the inode number should be
-set to -1. This way, utilities can scan through the entries to check
-if they are valid.
-
-When your server is started, it is passed the name of the file system
-image file. The image is created by a tool we provide, called `mkfs`.
-It is pretty self-explanatory and can be found
-[here](mkfs.c).
-
-When booting off of an existing image, your server should read in the
-superblock, bitmaps, and inode table, and keep in-memory versions of
-these. When writing to the image, you should update these on-disk
-structures accordingly.
-
-One important aspect of your on-disk structure is that you need to
-assume that your server can crash at any time, so all disk writes need
-to leave your file system in a consistent state. To maintain
-consistency you'll need to order your writes carefully to make sure
-that if your system crashes your file system is always correct.
-
-Importantly, you cannot change the file-system on-disk format.
-
-For more detailed documentation on the local file system specification,
-please see [LocalFileSystem.h](gunrock_web/include/LocalFileSystem.h)
-and the stub [LocalFileSystem.cpp](gunrock_web/LocalFileSystem.cpp). Also,
-please see [Disk.h](gunrock_web/Disk.h) for the interface for accessing
-the disk.
-
-### Bitmaps for block allocation
-We use on-disk bitmaps to keep track of entries (inodes and data blocks) that
-the file system has allocated. For our bitmaps for each byte, the least
-significant bit (LSB) is considered the first bit, and the most significant
-bit (MSB) is considered the last bit. So if the first bit of a two byte
-bitmap is set, it will look like this in hex:
-
+For example, you could run your program as:
 ```
-byte position:  0  1
-hex value:     01 00
-
-bit position   0                               15
-bit value:     1 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0
+$ ./gunrock_web -p 8003 -t 8 -b 16
 ```
 
-and if the last bit is set it will look like this in hex:
+In this case, your web server will listen to port 8003, create 8 worker threads for
+handling HTTP requests, and allocate 16 buffers for connections that are currently
+in progress (or waiting).
 
-```
-byte position:  0  1
-hex value:     00 80
+## Key concepts
+The main idea behind this server is to make adding handlers as easy as writing a function. The `FileService.cpp` is a simple service that will read a file from the `static` directory and serve it back to the client as HTML. If you want to write new handlers, you'd do it by adding the new service and inheriting from `HttpService`, adding your source file to the `Makefile` and registering your service with the main `gunrock.cpp` file as a new service.
 
-bit position   0                               15
-bit value:     0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 1
-```
+To match services to requests, the main `gunrock.cpp` logic tries to find the first path prefix match that it can, and when it finds a match it forwards the request on to the service for handling.
 
-### LocalFileSystem `write` and `read` semantics
-In our file system, we don't have a notion of appending or modifying data.
-Conceptually, when we get a `write` call we overwrite the entire contents
-of the file with the new contents of the file, and write calls specify
-the complete contents of the file.
+From within the service, you set the body of the request, or if there is an error you set the appropriate status code in the response object.
 
-Calls to `read` always read data starting from the beginning of the file,
-but if the caller specifies a size of less than the size of the object
-then you should return only these bytes. If the caller specifies a size
-of larger than the size of the object, then you only return the bytes
-in the object.
+## Thread functions
 
-### LocalFileSystem out of storage errors
-One important class of errors that your `LocalFileSystem` needs to handle is
-out of storage errors. Out of storage errors can happen when one of the
-file system modification calls -- `create`, `write`, and `unlink` -- does not
-have enough availabe storage to complete the request. You should identify
-out of storage errors before making any writes to disk. So in other words,
-your file system should be unchanged if an out of storage error happens.
+We created a pthread replacement library, called `dthread`, that you must
+use for this project. `dthread` logs information about your use of threads,
+mutexes, and condition variables so that we can grade your project.
 
-### Disk write ordering for correctness
-To read data, you are welcome to make extra disk reads and make them in any
-order to implement your file system functions. In fact, to help simplify your
-implementation we encorage you to read the entire inode table (region), data
-bitmap, and inode bitmap structures when you need to access these. Although these
-structures can span multiple disk blocks, to help simplify your implementation
-we encourage you to read these data structures in their entirety when you need
-to use them.
+We anticipate that you will find the following routines useful for creating
+and synchronizing threads: `dthread_create()`, `dthread_detach`,
+`dthread_mutex_lock()`, `dthread_mutex_unlock()`,
+`dthread_cond_wait()`, `dthread_cond_signal()`. To find information on these
+library routines, read the man pages for the pthread version of these same
+routines. To initialize your mutex and condition variables, assign them
+to the `PTHREAD_MUTEX_INITIALIZER` and `PTHREAD_COND_INITIALIZER` macros
+and you'll get initialized mutex and conidition variables.
 
-For disk writes, however, the order that you write data to disk is extremely
-important for correctness. As a general principle, you need to make sure that
-your file system is always in a consistent state after ALL disk writes. You can
-get a crash at any time, so making sure that your disk is always consistent and
-correct is an important part of this project.
+## Key files
+To make this server multithreaded, you're going to need to modify the main `gunrock.cpp` file and potentially `FileService.cpp`. You'll need to modify these files so that client requests are handled by a pool of threads with some priority logic to handle high priority files first. See the project README for more details.
 
-Some important points of consistency are (1) making sure that all blocks in use
-are marked as being allocated in the inode and data bitmaps and (2) All directories
-have two default entires, "." and ".." which refer to itself and its parent directory
-respectively.
+## Other files
+- **gunrock** - The main function + basic request handling
+- **FileService** - Main file service, where the application logic for reading files goes
+- **dthread** -- The main threading utilities, use the functions in this file for your threads
+- **HTTP** - Higher level HTTP object, interfaces with the `http_parser`
+- **http_parser** - HTTP protocol parsing state machine and callback functionality
+- **HTTPRequest** - The HTTP request object, this is filled in by the framework
+- **HTTPResponse** - The HTTP response object, the data for the response is filled in by the service
+- **HttpUtils** - Simple utility functions for working with HTTP data
+- **MyServerSocket** - High level abstraction on top of server sockets, accepts connections from new clients
+- **MySocket** - High level abstraction on top of sockets, used by the framework to read requests and write responses
 
-When creating a new entity, you should (1) write the data to disk,
-(2) write the inode to disk, and (3) update references to the inode.
-When deleting an entity, you should do the reverse (1) remove references
-to the inode, (2) delete the inode from disk, (3) delete the data from disk.
-When allocating new blocks, make sure to write updated bitmaps to disk before
-writing data to the corresponding block.
+## Autograding
 
-This write ordering will keep your file system in a consistent state and enable
-you to reuse high level file system functions in your implementation for other
-functions.
+We aren't providing test cases for this project, so an important part
+of the project is developing your own test cases. We'll try to give
+descriptive text that explains what an autograded test case tests, but
+it won't be perfect. Our suggestion is to invest in an extensive test
+suite that you write yourself to exercise your server.
 
-In our system we don't have a notion of appending or modifying data, conceptually we
-overwrite all data when we store something in our system. When modifying an existing
-entity, create new data and then as a final write update references so that the inode
-points to this new data, then delete the old data as a final step.
+When you submit your project via gradescope, you will turn in two
+files: `gunrock.cpp` and `FileService.cpp`.
 
-## File system utilities
-To help debug your disk images, you will create three small command-line utilities
-that read information about a given disk image and write it out to the command line.
-We have included an example disk image and expected outputs in the [disk_testing](gunrock_web/disk_testing)
-directory, but make sure that your utilities can handle multiple different disk
-image configurations and contents.
-
-Note: We will only test your utilities on correct disk images -- you can assume
-that all data on disk in the test cases is consistent and correct.
-
-### The `ds3ls` utility
-The `ds3ls` utility prints the names for all of the files and directories in
-a disk image. This utility takes a single command line argument: the name of
-the disk image file to use. This program will start at the root of the file system, print
-the contents of that directory in full, and then traverse to each directory
-contained within. This process repeats in a depth-first fasion until all
-file and directory names have been printed.
-
-When printing the contents of a directory, first, print the word `Directory`
-followed by a space and then the full path for the directory you're printing,
-and ending it with a newline. Second, print each of the entries in that 
-directory. Sorted each entry using `std::strcmp` and print them in that order.
-Each entry will include the inode number, a tab, the name of the entry, and
-finishing it off with a newline. Third, print a empty line consisting of only
-a newline to finish printing the contents of the directory.
-
-Make sure that your solution does _not_ print the contents of `.` and `..`
-subdirectories as this action would lead to an infinitely loop.
-
-After printing a directory, traverse into each subdirectory and repeat the process
-recursively in a depth-first fashion.
-
-### The `ds3cat` utility
-The `ds3cat` utility prints the contents of a file to standard output. It takes
-the name of the disk image file and an inode number as the only arguments. It prints the contents of the file
-that is specified by the inode number.
-
-For this utility, first print the string `File blocks` with a newline at the end
-and then print each of the disk block numbers for the file to standard out, one
-disk block number per line. After printing the file blocks, print an empty line
-with only a newline.
-
-Next, print the string `File data` with a newline at the end and then print
-the full contents of the file to standard out. You do not need to differentiate
-between files and directories, for this utility everything is considered to be
-data and should be printed to standard out.
-
-### The `ds3bits` utility
-The `ds3bits` utility prints metadata for the file system on a disk image. It takes
-a single command line argument: the name of a disk image file.
-
-First, it prints metadata about the file system starting with the string `Super` on a
-line, then `inode_region_addr` followed by a space and then the inode region address from
-the super block. Next, it should print the string `data_region_addr` followed by a space and the
-data region address from the super block, followed by a newline. Finally, print an empty line
-with just a newline character.
-
-Next it prints the inode and data bitmaps. Each bitmap starts with a string on its own line,
-`Inode bitmap` and `Data bitmap` respectively. For each bitmap, print the byte value,
-formatted as an `unsigned int` followed by a space. For each byte in your bitmap your print
-statement might look something like this:
-
-```
-cout << (unsigned int) bitmap[idx] << " ";
-```
-
-Where each byte is followed by a space, including the last byte and after you're done printing
-all of the bytes print a single newline character.
-
-Print the indoe bitmap first, followed by blank line consisting of only a single
-newline character, then print the data bitmap.
-
-## Gradescope
-We are using Gradescope to autograde your projects. You should submit the following
-files to Gradescope: `LocalFileSystem.cpp`, `DistributedFileSystemService.cpp`,
-`ds3ls.cpp`, `ds3cat.cpp`, and `ds3bits.cpp`.
