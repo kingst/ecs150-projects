@@ -338,4 +338,6 @@ newline character, then print the data bitmap.
 ## Gradescope
 We are using Gradescope to autograde your projects. You should submit the following
 files to Gradescope: `LocalFileSystem.cpp`, `DistributedFileSystemService.cpp`,
-`ds3ls.cpp`, `ds3cat.cpp`, and `ds3bits.cpp`.
+`ds3ls.cpp`, `ds3cat.cpp`, and `ds3bits.cpp`. The autograder requires all files to run
+so we provided stubs for each of these that you can use until you have your own 
+implementation of them.
