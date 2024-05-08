@@ -14,6 +14,13 @@ a [local file system](#local-file-system), and using the local file system to im
 file system](#distributed-file-system-1). We recommend implementing your server in this order where you ensure that you have
 a solid foundation before moving on to the next part.
 
+Fundamentally, this project is all about persistent storage. However, the
+interfaces you have to work with are all different. The disk operates only
+on disk blocks, the local file system organizes disk blocks into a heirarchical
+file system, and the API layer uses the local file system to provide an object
+abstraction. Each of these components have their own unique physical reality
+to work with and illusion they provide to software running above.
+
 ## Distributed File System
 
 ### Background
