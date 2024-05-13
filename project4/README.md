@@ -227,42 +227,6 @@ have enough availabe storage to complete the request. You should identify
 out of storage errors before making any writes to disk. So in other words,
 your file system should be unchanged if an out of storage error happens.
 
-### Disk write ordering for correctness
-To read data, you are welcome to make extra disk reads and make them in any
-order to implement your file system functions. In fact, to help simplify your
-implementation we encorage you to read the entire inode table (region), data
-bitmap, and inode bitmap structures when you need to access these. Although these
-structures can span multiple disk blocks, to help simplify your implementation
-we encourage you to read these data structures in their entirety when you need
-to use them.
-
-For disk writes, however, the order that you write data to disk is extremely
-important for correctness. As a general principle, you need to make sure that
-your file system is always in a consistent state after ALL disk writes. You can
-get a crash at any time, so making sure that your disk is always consistent and
-correct is an important part of this project.
-
-Some important points of consistency are (1) making sure that all blocks in use
-are marked as being allocated in the inode and data bitmaps and (2) All directories
-have two default entires, "." and ".." which refer to itself and its parent directory
-respectively.
-
-When creating a new entity, you should (1) write the data to disk,
-(2) write the inode to disk, and (3) update references to the inode.
-When deleting an entity, you should do the reverse (1) remove references
-to the inode, (2) delete the inode from disk, (3) delete the data from disk.
-When allocating new blocks, make sure to write updated bitmaps to disk before
-writing data to the corresponding block.
-
-This write ordering will keep your file system in a consistent state and enable
-you to reuse high level file system functions in your implementation for other
-functions.
-
-In our system we don't have a notion of appending or modifying data, conceptually we
-overwrite all data when we store something in our system. When modifying an existing
-entity, create new data and then as a final write update references so that the inode
-points to this new data, then delete the old data as a final step.
-
 ## File system utilities
 To help debug your disk images, you will create three small command-line utilities
 that read information about a given disk image and write it out to the command line.
