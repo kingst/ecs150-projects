@@ -234,6 +234,17 @@ We have included an example disk image and expected outputs in the [disk_testing
 directory, but make sure that your utilities can handle multiple different disk
 image configurations and contents.
 
+To implement your file system utilities, you'll want to have implementaitons
+for read-only functions within `LocalFileSystem.cpp` and use these functions
+to implement the utilities. In particular, you should implement `stat` and
+`read` to implement `ds3ls` and `ds3cat` (remember, the root directory is
+always inode 0 in our file system). For `ds3bits` you'll want to implement
+`readSuperBlock`, `readInodeBitmap`, and `readDataBitmap`.
+
+Our hope is that with these utilities you can ensure that your read-only 
+functions work and you can use these utilities to help debug as you implement
+more functionality.
+
 Note: We will only test your utilities on correct disk images -- you can assume
 that all data on disk in the test cases is consistent and correct.
 
