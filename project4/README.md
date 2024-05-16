@@ -163,10 +163,9 @@ image file. The image is created by a tool we provide, called `mkfs`.
 It is pretty self-explanatory and can be found
 [here](mkfs.c).
 
-When booting off of an existing image, your server should read in the
-superblock, bitmaps, and inode table, and keep in-memory versions of
-these. When writing to the image, you should update these on-disk
-structures accordingly.
+When accessing the files on an image, your server should read in the
+superblock, bitmaps, and inode table from disk as needed. When writing
+to the image, you should update these on-disk structures accordingly.
 
 One important aspect of your on-disk structure is that you need to
 assume that your server can crash at any time, so all disk writes need
