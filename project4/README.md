@@ -153,10 +153,8 @@ fixed-length field of size 28 bytes; the inode number is just an
 integer (4 bytes). When a directory is created, it should contain two
 entries: the name `.` (dot), which refers to this new directory's
 inode number, and `..` (dot-dot), which refers to the parent
-directory's inode number. For directory entries that are not yet in
-use (in an allocated 4-KB directory block), the inode number should be
-set to -1. This way, utilities can scan through the entries to check
-if they are valid.
+directory's inode number. For the root directory in a file system,
+both `.` and `..` refer to the root directory.
 
 When your server is started, it is passed the name of the file system
 image file. The image is created by a tool we provide, called `mkfs`.
