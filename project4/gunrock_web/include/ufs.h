@@ -23,7 +23,7 @@ typedef struct {
 #define DIR_ENT_NAME_SIZE (28)
 typedef struct {
     char name[DIR_ENT_NAME_SIZE];  // up to 28 bytes of name in directory (including \0)
-    int  inum;      // inode number of entry (-1 means entry not used)
+    int  inum;      // inode number of entry
 } dir_ent_t;
 
 // presumed: block 0 is the super block
