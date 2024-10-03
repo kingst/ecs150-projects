@@ -1,9 +1,13 @@
 {
   "build": { "dockerfile": "Dockerfile" },
-  "extensions": [
-		"ms-vsliveshare.vsliveshare-pack", // Live Share
-		"ms-vscode.cpptools", // C++
-		"matepek.vscode-catch2-test-adapter", // Test explorer
-		"ms-vscode.cmake-tools" // CMake extension
-	]
+  "customizations": {
+	"vscode": {
+		"extensions": [
+			"ms-vscode.cpptools",
+			"ms-vscode.cpptools-themes",
+			"ms-vscode.cmake-tools",
+			"ms-vscode.cpptools-extension-pack" 
+		]
+	}
+  }
 }
