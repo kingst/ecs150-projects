@@ -15,7 +15,7 @@ There are three specific objectives to this assignment:
 
 Make sure that your code uses the following Process API calls to manage processes:
 
-* `fork`, `execv`, `pipe`, `dup2`, and one of the `wait` family of system calls
+* `fork`, `execv`, `dup2`, and one of the `wait` family of system calls
 
 ## Overview
 
