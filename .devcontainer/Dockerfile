@@ -1,5 +1,5 @@
 #The image to be loaded/downloaded
-FROM ubuntu:22.04
+FROM --platform=amd64 ubuntu:22.04
 
 #Updating package lists
 RUN apt-get update -y
