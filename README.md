@@ -49,11 +49,11 @@ within the editor.
 ## Debugging
 To debug a program, you run it as follows:
 
-_In the terminal_
+_In the Visual Studio Code terminal_
 * [Linux and Windows host] ```gdbserver localhost:1234 ./gunrock_web```
 * [Mac host] ```ROSETTA_DEBUGSERVER_PORT=1234 ./gunrock_web```
 
-_Then in Visual Studio Code_
+_Then in Visual Studio Code editor_
 * Select "Run and Debug" on the left hand control pane
 * Select the "GDB Gunrock Web" configuration and hit the play button
 
