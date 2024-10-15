@@ -41,4 +41,21 @@ compile and run your code using the terminal.
 
 To debug your code using the Visual Studio Code debugger, you need to run your
 program using the terminal and then use one of our pre-set configurations to
-connect
+attach to your running program. Conceptually, there is a server running in your
+container that manages the Linux side of debugging, and Visual Studio Code connects
+to this server to issue debugging commands and display the state of your program
+within the editor.
+
+## Debugging
+To debug a program, you run it as follows:
+
+_In the terminal_
+* [Linux and Windows host] ```gdbserver localhost:1234 ./gunrock_web```
+* [Mac host] ```ROSETTA_DEBUGSERVER_PORT=1234 ./gunrock_web```
+
+_Then in Visual Studio Code_
+* Select "Run and Debug" on the left hand control pane
+* Select the "GDB Gunrock Web" configuration and hit the play button
+
+This will connect your Visual Studio Code debugger to your program running in your
+container.
