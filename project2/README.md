@@ -13,6 +13,10 @@ There are three specific objectives to this assignment:
 * To learn how processes are created, destroyed, and managed.
 * To gain exposure to the necessary functionality in shells.
 
+Make sure that your code uses the following Process API calls to manage processes:
+
+* `fork`, `execv`, `dup2`, and one of the `wait` family of system calls
+
 ## Overview
 
 In this assignment, you will implement a *command line interpreter (CLI)* or,
