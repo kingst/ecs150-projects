@@ -29,6 +29,11 @@ string BASEDIR = "static";
 string SCHEDALG = "FIFO";
 string LOGFILE = "/dev/null";
 
+// create locks used in this file
+pthread_mutex_t creationLock = PTHREAD_MUTEX_INITIALIZER; // used to create threads
+pthread_mutex_t assignmentLock = PTHREAD_MUTEX_INITIALIZER; // used to assign manager and workers
+
+
 vector<HttpService *> services;
 
 HttpService *find_service(HTTPRequest *request) {
@@ -104,6 +109,12 @@ void handle_request(MySocket *client) {
   delete client;
 }
 
+void* tempThreadFunct(void* arg)
+{
+	std::cout << "sus" << std::endl;
+	return NULL;
+}
+
 int main(int argc, char *argv[]) {
 
   signal(SIGPIPE, SIG_IGN);
@@ -141,14 +152,54 @@ int main(int argc, char *argv[]) {
   MyServerSocket *server = new MyServerSocket(PORT);
   MySocket *client;
 
-  // The order that you push services dictates the search order
-  // for path prefix matching
-  services.push_back(new FileService(BASEDIR));
-  
-  while(true) {
-    sync_print("waiting_to_accept", "");
-    client = server->accept();
-    sync_print("client_accepted", "");
-    handle_request(client);
+  // create necessary bools amd the queue
+  bool noManager = true;
+  vector<MySocket> clientQueue; 
+  pthread_t threadPool[THREAD_POOL_SIZE]; 
+
+  // create the worker threads
+  for (int i = 0; i < THREAD_POOL_SIZE; i++)
+  {
+	dthread_create(threadPool + i, NULL, tempThreadFunct, NULL);
+	dthread_mutex_lock(&creationLock);
   }
-}
+  dthread_mutex_unlock(&creationLock); // by the time this runs, i == thread_pool_size, so the other thread won't mess with the loop
+
+
+  // seperate the manager and worker trends into two different running paths
+  // Essential the first thread to reach the lock becomes the manager while the rest are workers
+  if (noManager)
+  {
+	  dthread_mutex_lock(&assignmentLock);
+	  if (!noManager) // this exist for an edge case where thread get trapped in the lock after 
+		  // the manager has been selected
+	  {
+		  dthread_mutex_unlock(&assignmentLock);
+	  }
+  }
+  
+  if (noManager)
+  {
+	  // one thread enters here and triggers bool so other thread go to worker space
+	  noManager = false;
+	  dthread_mutex_unlock(&assignmentLock);
+	// The order that you push services dictates the search order
+	  // for path prefix matching
+	  services.push_back(new FileService(BASEDIR));
+	  
+	  while(true) {
+	    sync_print("waiting_to_accept", "");
+	    client = server->accept();
+	    sync_print("client_accepted", "");
+	    handle_request(client);
+  }
+  // run manager code
+  }
+  else
+  {
+	  // run worker code
+
+  }
+
+
+  }
