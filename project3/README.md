@@ -352,3 +352,16 @@ suite that you write yourself to exercise your server.
 When you submit your project via gradescope, you will turn in two
 files: `gunrock.cpp` and `FileService.cpp`.
 
+## Hints
+Here are a few hints to help with the autograder:
+
+- Make sure that you only call `dthread` functions in your code. These functions do the same thing as their `pthread` equivalents but have logging that we use in the autograder.
+- Make sure that you call `set_log_file` _before_ you call any `dthread` functions.
+- Don't block your thread that calls `accept` on incoming requests until _after_ you accept a request.
+- Don't change or move any `sync_print` functions that we include -- the autograder uses these for grading. For example, when accepting a new request, your code needs to look like this:
+
+```c++
+sync_print("waiting_to_accept", "");
+client = server->accept();
+sync_print("client_accepted", "");
+```
