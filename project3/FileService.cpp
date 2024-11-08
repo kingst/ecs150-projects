@@ -35,6 +35,11 @@ bool FileService::endswith(string str, string suffix) {
 
 void FileService::get(HTTPRequest *request, HTTPResponse *response) {
   string path = this->m_basedir + request->getPath();
+  if (path.find("..") != string::npos)
+  {
+	throw invalid_argument(path);
+	return;
+  }
   string fileContents = this->readFile(path);
   if (fileContents.size() == 0) {
     response->setStatus(403);
@@ -61,10 +66,10 @@ string FileService::readFile(string path) {
   while ((ret = read(fd, buffer, sizeof(buffer))) > 0) {
     result.append(buffer, ret);
   }
-
   close(fd);
-  
+
   return result;
+
 }
 
 void FileService::head(HTTPRequest *request, HTTPResponse *response) {

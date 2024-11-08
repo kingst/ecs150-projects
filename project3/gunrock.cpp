@@ -30,8 +30,6 @@ string SCHEDALG = "FIFO";
 string LOGFILE = "/dev/null";
 
 // create locks used in this file TODO
-//pthread_mutex_t printLock = PTHREAD_MUTEX_INITIALIZER;
-//pthread_mutex_t queueAccessLock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t generalLock = PTHREAD_MUTEX_INITIALIZER;
 
 // create conditions
@@ -122,39 +120,28 @@ void* tempThreadFunct(void* arg)
 	dthread_mutex_lock(&generalLock);
 	while (true)
 	{
-	    //dthread_mutex_lock(&printLock);
-	    cout << "thrend reached here 1" << endl;
-	    //dthread_mutex_unlock(&printLock);
-		//dthread_mutex_lock(&queueAccessLock);
+	    //cout << "thrend reached here 1" << endl;
 		while (queue.empty())
 		{
-			//dthread_mutex_unlock(&queueAccessLock);
 			dthread_cond_wait(&queueIsNotEmpty, &generalLock);
-			//dthread_mutex_lock(&queueAccessLock);
 		}
-		//dthread_mutex_unlock(&queueAccessLock);
 	    
-	//dthread_mutex_lock(&printLock);
-	    cout << "thrend reached here 2" << endl;
-	    //dthread_mutex_unlock(&printLock);
+	    //cout << "thrend reached here 2" << endl;
 
-		MySocket* client = 0;
-		//dthread_mutex_lock(&queueAccessLock);
+		MySocket* client = NULL;
 		if (!queue.empty())
 		{
 			client = queue.back();
 			queue.pop_back();
 		}
-		//dthread_mutex_unlock(&queueAccessLock);
 		dthread_mutex_unlock(&generalLock); // allow another thread in
 		dthread_cond_signal(&queueHasSpace);
-	    //dthread_mutex_lock(&printLock);
-	    cout << "thrend reached here 3" << client << endl;
-	    //dthread_mutex_unlock(&printLock);
-		if (client != 0)
+	    //cout << "thrend reached here 3" << client << endl;
+		if (client != NULL)
 		{
 			handle_request(client);
 		}
+		dthread_mutex_lock(&generalLock);
 	}
 	dthread_mutex_unlock(&generalLock);
 	return NULL;
@@ -211,48 +198,31 @@ int main(int argc, char *argv[]) {
  
   dthread_mutex_lock(&generalLock);
   while(true) {
-	    //dthread_mutex_lock(&printLock);
-	    cout << "manager 1" << endl;
-	    //dthread_mutex_unlock(&printLock);
+	    //cout << "manager 1" << endl;
 	    
-	    //dthread_mutex_lock(&queueAccessLock);
 	    while((int)(queue.size()) >= BUFFER_SIZE) // wait until buffer has space to add requests
 	    {
-		    //dthread_mutex_unlock(&queueAccessLock);
 		    dthread_cond_wait(&queueHasSpace, &generalLock);
-		    //dthread_mutex_lock(&queueAccessLock);
 	    }
-	    //dthread_mutex_unlock(&queueAccessLock);
 	    
-	    //dthread_mutex_lock(&printLock);
-	    cout << "manager 2" << endl;
-	    //dthread_mutex_unlock(&printLock);
-	    
+	    //cout << "manager 2" << endl;
 
-	    //dthread_mutex_lock(&printLock);
 	    sync_print("waiting_to_accept", "");
-	    //dthread_mutex_unlock(&printLock);
 	    
 	    dthread_mutex_unlock(&generalLock); // allow another thread in
 	    client = server->accept();
-	    
-	    //dthread_mutex_lock(&printLock);
+	    dthread_mutex_lock(&generalLock);
+
 	    sync_print("client_accepted", "");
-	    //dthread_mutex_unlock(&printLock);
 	    
-	    //dthread_mutex_lock(&printLock);
-	    cout << "manager 3" << endl;
-	    //dthread_mutex_unlock(&printLock);
+	    //cout << "manager 3" << endl;
 	    
-	    //dthread_mutex_lock(&queueAccessLock); // push client onto buffer for workers to deal with
-	    queue.push_back(client);
-	    //dthread_mutex_unlock(&queueAccessLock);
+	    queue.insert(queue.begin(), client);
+	    //queue.push_back(client);
 
 	    dthread_cond_signal(&queueIsNotEmpty);
 	    
-	    //dthread_mutex_lock(&printLock);
-	    cout << "manager 4" << endl;
-	    //dthread_mutex_unlock(&printLock);
+	    //cout << "manager 4" << endl;
 	    
   }
   dthread_mutex_unlock(&generalLock);
