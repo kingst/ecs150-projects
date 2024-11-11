@@ -1,39 +1,7 @@
 #include "StringUtils.h"
-#include "Base64.h"
 
-#include <openssl/rand.h>
-
-#define ERROR_RUNTIME_ERROR "error_runtime_error"
-#define ERROR_NO_RANDOM_BYTES "error_no_random_bytes"
 
 using namespace std;
-
-string StringUtils::createUserId() {
-  return createAuthToken();
-}
-
-string StringUtils::createAuthToken() {
-  int numBytes = 18;
-  unsigned char *buf = new unsigned char[numBytes];
-  int rc = RAND_bytes(buf, numBytes);
-
-  // might happen if entropy pool has been depleted
-  if (rc != 1) {
-    delete [] buf;
-    throw ERROR_NO_RANDOM_BYTES;
-  }
-
-  string ret = "";
-  try {
-    ret = Base64::bytesToBase64UrlSafe(buf, numBytes);
-  } catch (...) {
-    delete [] buf;
-    throw ERROR_RUNTIME_ERROR;
-  }
-  
-  delete [] buf;
-  return ret;
-}
 
 vector<string> StringUtils::splitWithDelimiter(string str, char delimiter) {
   vector<string> result;

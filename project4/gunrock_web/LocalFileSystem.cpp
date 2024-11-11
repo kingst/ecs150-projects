@@ -17,6 +17,30 @@ void LocalFileSystem::readSuperBlock(super_t *super) {
 
 }
 
+void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap) {
+
+}
+
+void LocalFileSystem::writeInodeBitmap(super_t *super, unsigned char *inodeBitmap) {
+
+}
+
+void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap) {
+
+}
+
+void LocalFileSystem::writeDataBitmap(super_t *super, unsigned char *dataBitmap) {
+
+}
+
+void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes) {
+
+}
+
+void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes) {
+
+}
+
 int LocalFileSystem::lookup(int parentInodeNumber, string name) {
   return 0;
 }
@@ -40,3 +64,4 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   return 0;
 }
+

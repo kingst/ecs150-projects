@@ -1,6 +1,8 @@
+#include <iostream>
+
 #include "HttpClient.h"
 #include "HTTPClientResponse.h"
-#include "MySslSocket.h"
+//#include "MySslSocket.h"
 #include "Base64.h"
 
 #include <sstream>
@@ -9,7 +11,9 @@ using namespace std;
 
 HttpClient::HttpClient(const char *inet_addr, int port, bool use_tls) {
   if (use_tls) {
-    connection = new MySslSocket(inet_addr, port);
+    //connection = new MySslSocket(inet_addr, port);
+    cerr << "Removed SSL sockets for now" << endl;
+    exit(1);
   } else {
     connection = new MySocket(inet_addr, port);
   }

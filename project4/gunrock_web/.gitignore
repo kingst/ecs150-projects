@@ -4,6 +4,11 @@ mkfs
 ds3ls
 ds3cat
 ds3bits
+ds3mkdir
+ds3touch
+ds3cp
+ds3rm
+tests-out
 
 # Prerequisites
 *.d
@@ -35,5 +40,4 @@ ds3bits
 
 # Executables
 *.exe
-*.out
 *.app

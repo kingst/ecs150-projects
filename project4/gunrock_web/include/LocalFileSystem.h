@@ -135,14 +135,6 @@ class LocalFileSystem {
    */
   void readSuperBlock(super_t *super);
 
-  /**
-   * numDataBytesNeeded is converted to blocks and added to numDataBlocksNeeded
-   * Having two separate arguments for data helps for operations that write
-   * new data to two separate entities. If you don't need a value
-   * you can set the number needed to 0.
-   */
-  bool diskHasSpace(super_t *super, int numInodesNeeded, int numDataBytesNeeded, int numDataBlocksNeeded=0);
-
   // Helper functions, you should read/write the entire inode and bitmap regions
   void readInodeBitmap(super_t *super, unsigned char *inodeBitmap);
   void writeInodeBitmap(super_t *super, unsigned char *inodeBitmap);

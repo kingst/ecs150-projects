@@ -1,13 +1,13 @@
-all: gunrock_web mkfs ds3ls ds3cat ds3bits
+all: gunrock_web mkfs ds3ls ds3cat ds3bits ds3mkdir ds3cp ds3touch ds3rm
 
 CC = g++
-CFLAGS = -g -Werror -Wall -I include -I shared/include -I/usr/local/opt/openssl@1.1/include -I/opt/homebrew/Cellar/openssl@3/3.2.1/include
-LDFLAGS = -L /opt/homebrew/Cellar/openssl@3/3.2.1/lib -lssl -lcrypto -pthread
+CFLAGS = -g -Werror -Wall -I include -I shared/include
+LDFLAGS = -pthread
 VPATH = shared
 
-OBJS = gunrock.o MyServerSocket.o MySocket.o HTTPRequest.o HTTPResponse.o http_parser.o HTTP.o HttpService.o HttpUtils.o FileService.o dthread.o WwwFormEncodedDict.o StringUtils.o Base64.o HttpClient.o HTTPClientResponse.o MySslSocket.o DistributedFileSystemService.o LocalFileSystem.o Disk.o
+OBJS = gunrock.o MyServerSocket.o MySocket.o HTTPRequest.o HTTPResponse.o http_parser.o HTTP.o HttpService.o HttpUtils.o FileService.o dthread.o WwwFormEncodedDict.o StringUtils.o Base64.o HttpClient.o HTTPClientResponse.o DistributedFileSystemService.o LocalFileSystem.o Disk.o
 
-DSUTIL_OBJS = Disk.o LocalFileSystem.o
+DSUTIL_OBJS = Disk.o LocalFileSystem.o StringUtils.o
 
 -include $(OBJS:.o=.d)
 
@@ -20,11 +20,23 @@ mkfs: mkfs.o
 ds3ls: ds3ls.o $(DSUTIL_OBJS)
 	$(CC) -o $@ $(CFLAGS) ds3ls.o $(DSUTIL_OBJS)
 
+ds3cp: ds3cp.o $(DSUTIL_OBJS)
+	$(CC) -o $@ $(CFLAGS) ds3cp.o $(DSUTIL_OBJS)
+
 ds3cat: ds3cat.o $(DSUTIL_OBJS)
 	$(CC) -o $@ $(CFLAGS) ds3cat.o $(DSUTIL_OBJS)
 
+ds3rm: ds3rm.o $(DSUTIL_OBJS)
+	$(CC) -o $@ $(CFLAGS) ds3rm.o $(DSUTIL_OBJS)
+
 ds3bits: ds3bits.o $(DSUTIL_OBJS)
 	$(CC) -o $@ $(CFLAGS) ds3bits.o $(DSUTIL_OBJS)
+
+ds3mkdir: ds3mkdir.o $(DSUTIL_OBJS)
+	$(CC) -o $@ $(CFLAGS) ds3mkdir.o $(DSUTIL_OBJS)
+
+ds3touch: ds3touch.o $(DSUTIL_OBJS)
+	$(CC) -o $@ $(CFLAGS) ds3touch.o $(DSUTIL_OBJS)
 
 %.d: %.c
 	@set -e; gcc -MM $(CFLAGS) $< \
@@ -43,4 +55,4 @@ ds3bits: ds3bits.o $(DSUTIL_OBJS)
 	gcc $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f gunrock_web mkfs ds3ls ds3cat ds3bits *.o *~ core.* *.d
+	rm -f gunrock_web mkfs ds3ls ds3cat ds3bits ds3cp ds3mkdir ds3touch ds3rm *.o *~ core.* *.d
