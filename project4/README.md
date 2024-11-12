@@ -10,8 +10,8 @@ The goals of this project are:
 - To learn about distributed storage systems
 
 This project consists of three main parts: [reading on-disk storage
-using command line utilities](#file-system-utilities), [modifying
-on-disk storage](#file-system-utilities), and using the local file
+using command line utilities](#read-only-file-system-utilities), [modifying
+on-disk storage](#readwrite-file-system-utilities), and using the local file
 system to impelemnt a [distributed file
 system](#distributed-file-system-1). We recommend implementing your
 server in this order where you ensure that you have a solid foundation
