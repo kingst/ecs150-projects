@@ -1,5 +1,5 @@
 #! /bin/bash
-if ! shasum --quiet -c tests/img.shas; then
+if ! LANG=C shasum --quiet -c tests/img.shas; then
     echo "Error: Modified disk image file found"
     exit 1
 fi
