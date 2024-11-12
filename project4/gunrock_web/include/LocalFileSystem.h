@@ -93,7 +93,7 @@ class LocalFileSystem {
    * already exists.
    *
    * Success: number of bytes written
-   * Failure: -EINVALIDINODE, -EINVALIDSIZE, -EINVALIDTYPE, -ENOTENOUGHSPACE.
+   * Failure: -EINVALIDINODE, -EINVALIDSIZE, -EINVALIDTYPE.
    * Failure modes: invalid inodeNumber, invalid size, not a regular file
    * (because you can't write to directories).
    */
@@ -119,8 +119,7 @@ class LocalFileSystem {
    * parentInodeNumber.
    *
    * Success: 0
-   * Failure: -EINVALIDINODE, -EDIRNOTEMPTY, -EINVALIDNAME, -ENOTENOUGHSPACE,
-   *          -EUNLINKNOTALLOWED
+   * Failure: -EINVALIDINODE, -EDIRNOTEMPTY, -EINVALIDNAME, -EUNLINKNOTALLOWED
    * Failure modes: parentInodeNumber does not exist, directory is NOT
    * empty, or the name is invalid. Note that the name not existing is NOT
    * a failure by our definition. You can't unlink '.' or '..'
