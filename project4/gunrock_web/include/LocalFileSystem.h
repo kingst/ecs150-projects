@@ -80,9 +80,10 @@ class LocalFileSystem {
    *
    * Success: return the inode number of the new file or directory
    * Failure: -EINVALIDINODE, -EINVALIDNAME, -EINVALIDTYPE, -ENOTENOUGHSPACE.
-   * Failure modes: parentInodeNumber does not exist, or name is too long.
-   * If name already exists and is of the correct type, return success, but
-   * if the name already exists and is of the wrong type, return an error.
+   * Failure modes: parentInodeNumber does not exist or is not a directory, or
+   * name is too long. If name already exists and is of the correct type,
+   * return success, but if the name already exists and is of the wrong type,
+   * return an error.
    */
   int create(int parentInodeNumber, int type, std::string name);
 
@@ -120,9 +121,9 @@ class LocalFileSystem {
    *
    * Success: 0
    * Failure: -EINVALIDINODE, -EDIRNOTEMPTY, -EINVALIDNAME, -EUNLINKNOTALLOWED
-   * Failure modes: parentInodeNumber does not exist, directory is NOT
-   * empty, or the name is invalid. Note that the name not existing is NOT
-   * a failure by our definition. You can't unlink '.' or '..'
+   * Failure modes: parentInodeNumber does not exist or isn't a directory,
+   * directory is NOT empty, or the name is invalid. Note that the name not
+   * existing is NOT a failure by our definition. You can't unlink '.' or '..'
    */
   int unlink(int parentInodeNumber, std::string name);
   
