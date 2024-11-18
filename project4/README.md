@@ -411,7 +411,8 @@ message that makes sense.
 The `ds3rm` utility removes a file or empty directory from your disk
 image's file system. It takes three arguments: the disk image file
 name, the inode for the parent directory, and the name of the file or
-directory that you want to delete.
+directory that you want to delete. For all errors, print the string
+`Error removing entry` to standard error and exit with return code 1.
 
 ## Hints
 
