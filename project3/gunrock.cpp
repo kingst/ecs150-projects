@@ -10,6 +10,7 @@
 #include <vector>
 #include <sstream>
 #include <deque>
+#include <queue>
 
 #include "HTTPRequest.h"
 #include "HTTPResponse.h"
@@ -37,7 +38,7 @@ pthread_cond_t queueHasSpace = PTHREAD_COND_INITIALIZER;
 pthread_cond_t queueIsNotEmpty = PTHREAD_COND_INITIALIZER;
 
 // Queue
-vector<MySocket *> queue; 
+queue<MySocket *> buffer; 
 
 
 vector<HttpService *> services;
@@ -121,7 +122,7 @@ void* tempThreadFunct(void* arg)
 	while (true)
 	{
 	    //cout << "thrend reached here 1" << endl;
-		while (queue.empty())
+		while (buffer.empty())
 		{
 			dthread_cond_wait(&queueIsNotEmpty, &generalLock);
 		}
@@ -129,18 +130,12 @@ void* tempThreadFunct(void* arg)
 	    //cout << "thrend reached here 2" << endl;
 
 		MySocket* client = NULL;
-		if (!queue.empty())
-		{
-			client = queue.back();
-			queue.pop_back();
-		}
-		dthread_mutex_unlock(&generalLock); // allow another thread in
+		client = buffer.front();
+		buffer.pop();
 		dthread_cond_signal(&queueHasSpace);
+		dthread_mutex_unlock(&generalLock); // allow another thread in
 	    //cout << "thrend reached here 3" << client << endl;
-		if (client != NULL)
-		{
-			handle_request(client);
-		}
+		handle_request(client);
 		dthread_mutex_lock(&generalLock);
 	}
 	dthread_mutex_unlock(&generalLock);
@@ -190,7 +185,7 @@ int main(int argc, char *argv[]) {
   // create the worker threads
   for (int i = 0; i < THREAD_POOL_SIZE; i++)
   {
-	dthread_create(threadPool + i, NULL, tempThreadFunct, NULL);
+	dthread_create(&(threadPool[i]), NULL, &tempThreadFunct, NULL);
   }
 
 
@@ -199,28 +194,25 @@ int main(int argc, char *argv[]) {
   dthread_mutex_lock(&generalLock);
   while(true) {
 	    //cout << "manager 1" << endl;
+	    dthread_mutex_unlock(&generalLock); // allow another thread in
+	    sync_print("waiting_to_accept", "");
+	    client = server->accept();
+	    sync_print("client_accepted", "");
+	    dthread_mutex_lock(&generalLock);
 	    
-	    while((int)(queue.size()) >= BUFFER_SIZE) // wait until buffer has space to add requests
+	    while((int)(buffer.size()) >= BUFFER_SIZE) // wait until buffer has space to add requests
 	    {
 		    dthread_cond_wait(&queueHasSpace, &generalLock);
 	    }
 	    
 	    //cout << "manager 2" << endl;
 
-	    sync_print("waiting_to_accept", "");
-	    
-	    dthread_mutex_unlock(&generalLock); // allow another thread in
-	    client = server->accept();
-	    dthread_mutex_lock(&generalLock);
-
-	    sync_print("client_accepted", "");
 	    
 	    //cout << "manager 3" << endl;
 	    
-	    queue.insert(queue.begin(), client);
-	    //queue.push_back(client);
+	    buffer.push(client);
 
-	    dthread_cond_signal(&queueIsNotEmpty);
+	    dthread_cond_broadcast(&queueIsNotEmpty);
 	    
 	    //cout << "manager 4" << endl;
 	    
