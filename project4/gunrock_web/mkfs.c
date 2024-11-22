@@ -110,12 +110,13 @@ int main(int argc, char *argv[]) {
     // first, zero out all the blocks
     int i;
     for (i = 1; i < total_blocks; i++) {
-	rc = pwrite(fd, empty_buffer, UFS_BLOCK_SIZE, i * UFS_BLOCK_SIZE);
-	if (rc != UFS_BLOCK_SIZE) {
-	    perror("write");
-	    exit(1);
-	}
+        rc = pwrite(fd, empty_buffer, UFS_BLOCK_SIZE, i * UFS_BLOCK_SIZE);
+        if (rc != UFS_BLOCK_SIZE) {
+            perror("write");
+            exit(1);
+        }
     }
+    free(empty_buffer);
 
     //
     // need to allocate first inode in inode bitmap

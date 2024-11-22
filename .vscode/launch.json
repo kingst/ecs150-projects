@@ -127,7 +127,7 @@
             "miDebuggerServerAddress": "localhost:1234",
             "miDebuggerPath": "/usr/bin/gdb"
         },
-	{
+    	{
             "name": "GDB ds3cat",
             "type": "cppdbg",
             "request": "launch",
@@ -147,8 +147,8 @@
             ],
             "miDebuggerServerAddress": "localhost:1234",
             "miDebuggerPath": "/usr/bin/gdb"
-        }
-	{
+        },
+	    {
             "name": "GDB ds3bits",
             "type": "cppdbg",
             "request": "launch",
