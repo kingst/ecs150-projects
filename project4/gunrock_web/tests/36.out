@@ -1,0 +1,71 @@
+2	.
+1	..
+3	c.txt
+5	d.txt
+File blocks
+10
+11
+8
+
+File data
+Late into the night, the bright screens illuminated the faces of Anne and Sam as they huddled in Shields Library, surrounded by empty coffee cups and scattered notes about virtual memory management. Project 4 of ECS 150 loomed before them like a digital mountain they had to climb, with its demanding requirements for implementing a virtual memory system in their custom operating system. The autumn quarter was drawing to a close, and this final project would determine whether all their hard work in operating systems would pay off.
+
+"I still can't believe we have to implement page fault handling," Anne muttered, scrolling through the project specification for the hundredth time. "And these TLB invalidation requirements are giving me a headache. Why did we think taking operating systems and computer networks in the same quarter was a good idea?"
+
+Sam nodded sympathetically while debugging their page replacement algorithm. "At least we figured out the frame allocation part. Remember when we spent three hours just trying to understand why our physical memory mapping was wrong? That seems like ages ago now." She reached for her fourth cup of coffee of the night, grimacing at the now-cold liquid.
+
+The project had started innocently enough two weeks ago. Their professor had introduced it with the usual mix of enthusiasm and warning about its complexity. "This will tie together everything you've learned about operating systems," he had said, pacing in front of the lecture hall with characteristic energy. "Virtual memory is where all the pieces come together - process management, memory management, and even aspects of file systems." Little did they know just how true those words would be.
+
+Their first challenge had been understanding the existing codebase. The skeleton code provided a basic framework, but implementing virtual memory required them to dive deep into their OS's architecture. They had to modify their kernel to support page tables, handle page faults, and implement a second-chance page replacement algorithm. The documentation, while thorough, assumed a level of understanding that they were still struggling to achieve.
+
+"Remember when we thought Project 3 was hard?" Anne laughed, though there was a hint of hysteria in her voice. "File systems seem like a walk in the park compared to this. At least you could see the files you were working with. With virtual memory, everything's just... virtual." She pushed back from her laptop, stretching arms that had grown stiff from hours of typing.
+
+The learning curve had been steep. They had spent entire days in the computer science lab, surrounded by other teams facing the same challenges. The teaching assistants had been helpful, but even they sometimes needed time to understand the intricate bugs that kept cropping up. One TA, after spending two hours helping them track down a particularly nasty page fault issue, had admitted that this project had given him trouble when he took the course the previous year.
+
+They had learned early on that debugging virtual memory was particularly challenging because a single mistake could crash the entire system. Their first attempt at implementing page fault handling had resulted in a spectacular kernel panic that took them hours to track down. The error message, cryptic as always, had simply read "Page fault at address 0xdeadbeef" - a memory address that had at least made them chuckle despite their frustration.
+
+"Pass me the rubber duck," Sam said, reaching for the small yellow debugging companion they had bought as a joke but had become an essential team member. "I need to explain why our TLB invalidation isn't working." The duck, now sporting a small graduation cap made from a Post-it note, had become something of a mascot for their project team.
+
+The rubber duck had heard many confessions over the past two weeks. It had listened patiently as they explored why their page replacement algorithm was evicting the wrong pages, why their address translation was sometimes returning impossible values, and why their process memory isolation wasn't quite as isolated as it should be. Sometimes, just the act of explaining the problem to the duck had led to breakthrough realizations.
+
+Their whiteboard had become a maze of diagrams showing page table structures, virtual address spaces, and the complex dance of pages moving between physical and virtual memory. Other students passing by would often stop to admire (or perhaps pity) the complexity of their drawings. One particular diagram, showing the relationship between virtual and physical addresses, had grown so complex that it had acquired its own legend and version number.
+
+"I think I found something," Anne suddenly exclaimed, her eyes lighting up with the particular joy that comes from discovering a bug. "We're not properly updating the page table entries when we mark pages as dirty. That's why our writes aren't being preserved across page faults!" The revelation sent Sam rushing to her side, both of them hunching over the laptop to examine the problematic code.
+
+This revelation led to another hour of intense coding and testing. They had learned to be methodical, testing each component thoroughly before moving on. The project had taught them that in systems programming, assumptions were dangerous and verification was essential. Their bug tracking document had grown into a detailed journal of their debugging adventures, complete with timestamps and increasingly creative bug names.
+
+Their test suite had grown impressive over the days. They had cases for page allocation, deallocation, mapping, unmapping, and the particularly tricky edge cases where multiple processes tried to access the same memory regions. Each test case represented a hard-won lesson about how virtual memory could fail. They had even created a special "torture test" designed to push their implementation to its limits, though running it still made them nervous.
+
+"Remember when we accidentally created a memory leak by forgetting to free page table entries?" Sam reminisced while writing yet another test case. "The system kept running slower and slower until we finally figured it out. I think I actually dreamed about memory leaks that night." Anne laughed, remembering how they had celebrated fixing that bug with a midnight pizza run to Woodstock's.
+
+The project had changed how they thought about computers. Every program they ran, every website they visited, now carried with it the knowledge of the complex memory management happening beneath the surface. They had gained a new appreciation for the operating system's role in creating the illusion of infinite, private memory for each process. Even simple programs like text editors had become marvels of virtual memory management in their eyes.
+
+They had developed their own debugging rituals over the weeks. When things got particularly frustrating, they would take turns walking around the library, explaining their latest theory about what was going wrong. The computer science reading room had become their second home, with its comfortable chairs and whiteboards becoming their war room for strategy sessions.
+
+As midnight approached, they reached a milestone: their page fault handler successfully managed to swap pages in and out without crashing. The second-chance algorithm was working, giving pages that had been recently accessed another opportunity before being evicted. They had even added some performance optimizations, keeping track of statistics about page faults and TLB hits that weren't strictly required but would make for interesting analysis in their final report.
+
+"Let's try the stress test," Anne suggested, though her voice carried a mix of hope and fear. They had written a program that created multiple processes, each attempting to access memory in patterns designed to trigger their virtual memory system. The test had become their gold standard - if it passed, they could be reasonably confident in their implementation.
+
+They watched with bated breath as the test ran. Pages were allocated, mapped, accessed, and swapped. The TLB was repeatedly filled and invalidated. Their debug output showed the complex choreography of memory management they had implemented. Each successful operation felt like a small victory.
+
+"It's... working?" Sam said incredulously as the test completed successfully. They ran it again, hardly daring to believe. Again, it passed. The silence in the library was broken by their quiet celebrations, quickly stifled when they remembered where they were.
+
+The following hour was spent running every test they could think of, trying to find edge cases they hadn't considered. Each successful test brought a mixture of relief and suspicion - in systems programming, things that appeared to work often harbored subtle bugs. They had learned this lesson the hard way earlier in the project when a seemingly working implementation had failed spectacularly during their demonstration to the TA.
+
+Their success had attracted attention. Other teams working nearby began asking questions about their implementation, and soon they found themselves explaining their approach to page replacement and TLB management. Helping others understand these concepts reinforced their own understanding, and they found themselves using their whiteboard diagrams to illustrate particularly tricky concepts.
+
+"We should document this before we forget how it works," Anne said, opening a new file for their design document. They had learned that good documentation was crucial, not just for the graders but for themselves. More than once, they had thanked their past selves for leaving clear comments explaining particularly tricky parts of the code.
+
+As they documented their design decisions, they reflected on how much they had learned. The project had taught them about memory management, sure, but also about debugging complex systems, working as a team, and the importance of methodical problem-solving. They had Super
+inode_region_addr 3
+inode_region_len 1
+num_inodes 32
+data_region_addr 4
+data_region_len 32
+num_data 32
+
+Inode bitmap
+47 0 0 0 
+
+Data bitmap
+223 0 0 0 
