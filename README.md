@@ -49,6 +49,9 @@ within the editor.
 ## Debugging
 To debug a program, you run it as follows:
 
+_First compile it without address sanitizer_
+* ```make clean; DEBUGGER=true make```
+
 _In the Visual Studio Code terminal_
 * [Linux and Windows host] ```gdbserver localhost:1234 ./gunrock_web```
 * [Mac host] ```ROSETTA_DEBUGSERVER_PORT=1234 ./gunrock_web```
@@ -66,3 +69,4 @@ online for help when you get stuck will be useful:
 * Select "Auto Save" in Visual Studio Code to ensure that it saves your files as you edit.
 * In our examples we use port `1234` for the debugger, but you can change this port if needed, just make sure that you update your `launch.json` file to match.
 * To get started with a project, you will typically clone our [ECS 150 repo on GitHub](https://github.com/kingst/ecs150-projects) using Visual Studio Code "Clone git repository" option and Visual Studio Code will set up a Dev Container for you based on the confiugrations we included in that repo.
+* If we push an update in the middle of a project, you can use `git pull` in your host terminal to fetch the latest updates. There is probably a way to do this in Visual Studio Code as well.

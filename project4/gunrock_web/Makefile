@@ -1,8 +1,16 @@
 all: gunrock_web mkfs ds3ls ds3cat ds3bits ds3mkdir ds3cp ds3touch ds3rm
 
 CC = g++
-CFLAGS = -g -Werror -Wall -I include -I shared/include -fsanitize=address
+CFLAGS_BASE = -g -Werror -Wall -I include -I shared/include
 LDFLAGS = -pthread
+
+# If DEBUGGER is set, don't use ASAN
+ifdef DEBUGGER
+    CFLAGS = $(CFLAGS_BASE)
+else
+    CFLAGS = $(CFLAGS_BASE) -fsanitize=address
+endif
+
 VPATH = shared
 
 OBJS = gunrock.o MyServerSocket.o MySocket.o HTTPRequest.o HTTPResponse.o http_parser.o HTTP.o HttpService.o HttpUtils.o FileService.o dthread.o WwwFormEncodedDict.o StringUtils.o Base64.o HttpClient.o HTTPClientResponse.o DistributedFileSystemService.o LocalFileSystem.o Disk.o
