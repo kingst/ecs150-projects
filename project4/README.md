@@ -446,6 +446,11 @@ Here are a few hints to help you get started:
   deciding which error checks go in the internal function vs the
   calling function.
 
+- For `ds3cat`, when you read data from your file system you're
+  reading bytes, which is not NULL terminated. When you print the
+  data, make sure that you NULL terminate the data before printing it
+  to the screen.
+
 - To calculate the number of disk blocks given a file size, use this
   logic:
 
