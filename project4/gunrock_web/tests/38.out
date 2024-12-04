@@ -1,0 +1,13 @@
+Super
+inode_region_addr 3
+inode_region_len 8
+num_inodes 256
+data_region_addr 11
+data_region_len 32
+num_data 32
+
+Inode bitmap
+255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 255 1 0 0 0 0 0 0 
+
+Data bitmap
+3 0 0 0 
