@@ -53,8 +53,8 @@ _First compile it without address sanitizer_
 * ```make clean; DEBUGGER=true make```
 
 _In the Visual Studio Code terminal_
-* [Linux and Windows host] ```gdbserver localhost:1234 ./gunrock_web```
-* [Mac host] ```ROSETTA_DEBUGSERVER_PORT=1234 ./gunrock_web```
+* [Linux, Windows, Mac (x86) host] ```gdbserver localhost:1234 ./gunrock_web```
+* [Mac (Apple Silicon) host] ```ROSETTA_DEBUGSERVER_PORT=1234 ./gunrock_web```
 
 _Then in Visual Studio Code editor_
 * Select "Run and Debug" on the left hand control pane
@@ -62,6 +62,19 @@ _Then in Visual Studio Code editor_
 
 This will connect your Visual Studio Code debugger to your program running in your
 container.
+
+## What if Docker or the debugger doesn't work?
+
+We added a debug target for Mac hosts that will use the Mac native
+debugger without Docker. Note, this configuration is not supported,
+but if you're stuck and just need to get your project done many have
+had success with it. To use it you:
+* Open your project and _do not_ open in a dev container.
+* On the terminal, compile with `make clean; DEBUGGER=true make`
+* Make sure that the utility you want to debug is visible in your editor. For example, if you're debugging `ds3cat` then `ds3cat.cpp` should be open in your editor.
+* Go to the VSCode debugger panel and select the "Mac Debug Current File" option.
+
+Just to reiterate, we can't support this configuration yet, but if you're stuck you can try it as an option.
 
 ## Hints
 Here are a few hints to help, but Visual Studio Code is widely used software so checking
