@@ -4,3 +4,4 @@ tests
 *.o
 *.d
 gunrock_web
+submit
