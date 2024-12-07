@@ -55,6 +55,9 @@ int main(int argc, char *argv[]) {
 
   cout << "Data bitmap" << endl;
   printBitmap(dataBitmap, super.num_data / 8);
+
+  delete fileSystem;
+  delete disk;
   
   return 0;
 }

@@ -52,5 +52,8 @@ int main(int argc, char *argv[]) {
   }
   // cout << dataBuffer;
 
+  delete fileSystem;
+  delete disk;
+
   return 0;
 }

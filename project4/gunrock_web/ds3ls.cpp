@@ -120,6 +120,9 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < (int) files.size(); i ++) {
     cout << files[i].inum << "\t" << files[i].name << endl;
   }
+
+  delete fileSystem;
+  delete disk;
   
   return 0;
 }

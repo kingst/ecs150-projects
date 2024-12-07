@@ -23,6 +23,9 @@ int main(int argc, char *argv[]) {
   string fileName = string(argv[3]);
 
   fileSystem->create(parentInode, UFS_REGULAR_FILE, fileName);
+
+  delete fileSystem;
+  delete disk;
   
   return 0;
 }
