@@ -280,6 +280,21 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   inode_t inodes[numInodes];
   readInodeRegion(&super, inodes);
 
+  int existingInodeNum = lookup(parentInodeNumber, name);
+  if (existingInodeNum >= 0) {
+    inode_t existingInode = inodes[existingInodeNum];
+    if (existingInode.type == type) {
+      return 0;
+    } else {
+      if (type == UFS_DIRECTORY) {
+        cerr << "Error creating directory" << endl;
+      } else {
+        cerr << "Error creating file" << endl;
+      }
+      return 1;
+    }
+  }
+
   unsigned char dataBitmap[super.num_data / 8];
   readDataBitmap(&super, dataBitmap);  // this is modifying inodes??
 
