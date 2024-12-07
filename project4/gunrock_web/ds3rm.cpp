@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
   return 1;
  }
 
- delete fileSystem;
+  delete fileSystem;
   delete disk;
 
   return 0;

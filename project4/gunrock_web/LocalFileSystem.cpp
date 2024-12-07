@@ -496,6 +496,114 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 }
 
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {
+  super_t super;
+  readSuperBlock(&super);
+  inode_t inodes[super.num_inodes];
+  readInodeRegion(&super, inodes);
+
+  // get parent inode
+  inode_t parentInode = inodes[parentInodeNumber];
+
+  // get item inode
+  int inodeNum = lookup(parentInodeNumber, name);
+  if (inodeNum == -ENOTFOUND || inodeNum == -EINVALIDINODE) {
+    cerr << "Error removing entry" << endl;
+    return 1;
+  }
+  inode_t inode = inodes[inodeNum];
+
+  // if inode is a directory
+  if (inode.type == UFS_DIRECTORY) {
+    // check for contents (if directory isn't empty, it's an error)
+    // empty directory has 2 entries: . and ..
+    if (inode.size != 2 * sizeof(dir_ent_t)) {
+      cerr << "Error removing entry" << endl;
+      return 1;
+    }
+  }
+
+  // free data: data bitmap, direct pointer
+
+  // iterate over direct pointers
+  int fileBytes = inode.size;
+  int fileBlocks = fileBytes / UFS_BLOCK_SIZE;
+  if (fileBytes % UFS_BLOCK_SIZE) fileBlocks ++;
+
+  unsigned char dataBitmap[super.num_data / 8];
+  readDataBitmap(&super, dataBitmap);
+
+  for (int directIdx = 0; directIdx < fileBlocks; directIdx ++) {
+    int directBlock = inode.direct[directIdx];
+    
+    // free block in bitmap
+    int dataBit = directBlock - super.data_region_addr;
+    setBitmapBit(dataBitmap, dataBit, 0);
+  }
+
+  // sync data bitmap changes
+  writeDataBitmap(&super, dataBitmap);
+
+  // set inode size to 0
+  inode.size = 0;
+
+  // clear inode bitmap bit
+  unsigned char inodeBitmap[super.num_inodes / 8];
+  readInodeBitmap(&super, inodeBitmap);
+  setBitmapBit(inodeBitmap, inodeNum, 0);
+
+  // sync inode bitmap changes
+  writeInodeBitmap(&super, inodeBitmap);
+
+  // remove dir_ent_t from parent
+  // iterate over parent direct blocks
+  int parentBlocks = parentInode.size / UFS_BLOCK_SIZE;
+  if (parentInode.size % UFS_BLOCK_SIZE) parentBlocks ++;
+
+  // need to remove the last block
+  if (parentInode.size % UFS_BLOCK_SIZE == sizeof(dir_ent_t)) {
+    
+    // invalidate direct pointer
+    parentInode.direct[parentBlocks - 1] = -1; // poop
+
+    // clear bit in bitmap
+    int parentBlockBit = parentBlocks - 1 + super.data_region_addr;
+    setBitmapBit(dataBitmap, parentBlockBit, 0);
+    writeDataBitmap(&super, dataBitmap);
+  }
+
+  for (int directIdx = 0; directIdx < parentBlocks; directIdx ++) {
+    // read in block
+    int blockNum = parentInode.direct[directIdx];
+    char buffer[UFS_BLOCK_SIZE];
+    this->disk->readBlock(blockNum, buffer);
+
+    char newEntriesBlock[UFS_BLOCK_SIZE];
+    int offset = 0;
+
+    // iterate over directory entries in block
+    for (int byteOffset = 0; byteOffset < UFS_BLOCK_SIZE; byteOffset += sizeof(dir_ent_t)) {
+      
+      dir_ent_t entry;
+      memcpy(&entry, buffer + byteOffset, sizeof(dir_ent_t));
+      if (entry.name == name) {
+        offset = (int) -sizeof(dir_ent_t);
+      } else {
+        memcpy(newEntriesBlock + byteOffset + offset, buffer + byteOffset, sizeof(dir_ent_t));
+      }
+    }
+
+    // update block
+    this->disk->writeBlock(blockNum, newEntriesBlock);
+  }
+
+  // update parent size
+  parentInode.size -= sizeof(dir_ent_t);
+
+  // sync inodes
+  inodes[parentInodeNumber] = parentInode;
+  inodes[inodeNum] = inode;
+  writeInodeRegion(&super, inodes);
+
   return 0;
 }
 
