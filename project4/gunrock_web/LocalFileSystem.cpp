@@ -423,6 +423,11 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   readInodeRegion(&super, inodes);
   inode_t fileInode = inodes[inodeNumber];
 
+  if (fileInode.type != UFS_REGULAR_FILE) {
+    cerr << "Could not write to dst_file" << endl;
+    return 1;
+  }
+
   // check how many blocks currently used
   int blocksUsed = fileInode.size / UFS_BLOCK_SIZE;
   if (fileInode.size % UFS_BLOCK_SIZE) blocksUsed ++;
@@ -450,9 +455,9 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   else if (blocksNeeded < blocksUsed) {
     for (int i = 0; i < blocksUsed - blocksNeeded; i ++) {
       // find block to free
-      int directIdx = blocksUsed - i;
+      int directIdx = blocksUsed - i - 1;
       int dataBlockNum = fileInode.direct[directIdx];
-      int dataBit = dataBlockNum - super.data_bitmap_addr;
+      int dataBit = dataBlockNum - super.data_region_addr;
 
       // set bitmap bit
       setBitmapBit(dataBitmap, dataBit, 0);
