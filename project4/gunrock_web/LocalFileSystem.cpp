@@ -410,6 +410,83 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
 }
 
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
+  const char* readBuffer = static_cast<const char*>(buffer);
+
+  // calculate how many blocks needed
+  int blocksNeeded = size / UFS_BLOCK_SIZE;
+  if (size % UFS_BLOCK_SIZE) blocksNeeded ++;
+
+  super_t super;
+  readSuperBlock(&super);
+
+  inode_t inodes[super.num_inodes];
+  readInodeRegion(&super, inodes);
+  inode_t fileInode = inodes[inodeNumber];
+
+  // check how many blocks currently used
+  int blocksUsed = fileInode.size / UFS_BLOCK_SIZE;
+  if (fileInode.size % UFS_BLOCK_SIZE) blocksUsed ++;
+
+  unsigned char dataBitmap[super.num_data / 8];
+  readDataBitmap(&super, dataBitmap);
+
+  // need to allocate more blocks
+  if (blocksNeeded > blocksUsed) {
+    for (int i = 0; i < blocksNeeded - blocksUsed; i ++) {
+      // find first unused block
+      int dataBit = firstEmptyBit(dataBitmap, super.num_data);
+      int dataBlockNum = super.data_region_addr + dataBit;
+
+      // set bitmap bit
+      setBitmapBit(dataBitmap, dataBit, 1);
+      writeDataBitmap(&super, dataBitmap);
+
+      // set direct pointer
+      int directIdx = blocksUsed + i;
+      fileInode.direct[directIdx] = dataBlockNum;
+    }
+  } 
+  // need to unallocate blocks
+  else if (blocksNeeded < blocksUsed) {
+    for (int i = 0; i < blocksUsed - blocksNeeded; i ++) {
+      // find block to free
+      int directIdx = blocksUsed - i;
+      int dataBlockNum = fileInode.direct[directIdx];
+      int dataBit = dataBlockNum - super.data_bitmap_addr;
+
+      // set bitmap bit
+      setBitmapBit(dataBitmap, dataBit, 0);
+      writeDataBitmap(&super, dataBitmap);
+
+      // free direct pointer
+      fileInode.direct[directIdx] = -1;
+    }
+  }
+
+  // write to the data blocks
+
+  fileInode.size = 0;
+  int bytesToWrite = size;
+
+  // iterate over direct pointers to data blocks
+  for (int directIdx = 0; directIdx < blocksNeeded; directIdx ++) {
+    int blockNum = fileInode.direct[directIdx];
+
+    int writingBytes = UFS_BLOCK_SIZE;
+    if (bytesToWrite < UFS_BLOCK_SIZE) writingBytes = bytesToWrite;
+
+    // put this block's data in a buffer
+    char writeBuf[UFS_BLOCK_SIZE];
+    memcpy(writeBuf, readBuffer + directIdx * UFS_BLOCK_SIZE, writingBytes);
+
+    this->disk->writeBlock(blockNum, writeBuf);
+    fileInode.size += writingBytes;
+    bytesToWrite -= writingBytes;
+  }
+
+  inodes[inodeNumber] = fileInode;
+  writeInodeRegion(&super, inodes);
+
   return 0;
 }
 
