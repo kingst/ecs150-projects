@@ -443,22 +443,32 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
 }
 
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
+  if (size < 0) {
+    return -EINVALIDSIZE;
+  }
+
   const char* readBuffer = static_cast<const char*>(buffer);
 
   // calculate how many blocks needed
   int blocksNeeded = size / UFS_BLOCK_SIZE;
   if (size % UFS_BLOCK_SIZE) blocksNeeded ++;
+  if (blocksNeeded > DIRECT_PTRS) blocksNeeded = DIRECT_PTRS;
 
   super_t super;
   readSuperBlock(&super);
+
+  // inode of this number doesn't exist
+  if (inodeNumber < 0 || inodeNumber >= super.num_inodes) {
+    return -EINVALIDINODE;
+  }
 
   inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
   inode_t fileInode = inodes[inodeNumber];
 
+  // isn't a file (we can't write to directories)
   if (fileInode.type != UFS_REGULAR_FILE) {
-    cerr << "Could not write to dst_file" << endl;
-    return 1;
+    return -EINVALIDTYPE;
   }
 
   // check how many blocks currently used
@@ -525,7 +535,8 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   inodes[inodeNumber] = fileInode;
   writeInodeRegion(&super, inodes);
 
-  return 0;
+  // if any bytes to write are remaining, we didn't write the whole buffer
+  return size - bytesToWrite;
 }
 
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {

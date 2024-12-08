@@ -60,7 +60,15 @@ int main(int argc, char *argv[]) {
   }
   close(fd);
 
-  fileSystem->write(dstInode, writeBuf, fileSize);
+  ret = fileSystem->write(dstInode, writeBuf, fileSize);
+
+  delete fileSystem;
+  delete disk;
+
+  if (ret < 0) {
+    cerr << "Could not write to dst_file" << endl;
+    return 1;
+  }
   
   return 0;
 }
