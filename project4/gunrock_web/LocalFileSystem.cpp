@@ -305,9 +305,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
       printCreateError(type);
       return 1;
     }
-  } else {
-    printCreateError(type);
-    return 1;
   }
 
   unsigned char dataBitmap[super.num_data / 8];
