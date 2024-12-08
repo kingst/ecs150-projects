@@ -14,6 +14,8 @@
 
 using namespace std;
 
+// test case 27 should return 0 (currently not returning 0)
+// forcing error return 0 is still incorrect rc so probably seg fault :(
 int main(int argc, char *argv[]) {
   if (argc != 4) {
     cerr << argv[0] << ": diskImageFile src_file dst_inode" << endl;
@@ -49,8 +51,8 @@ int main(int argc, char *argv[]) {
 
   while ((ret = read(fd, readBuf, UFS_BLOCK_SIZE)) > 0) {
     if (ret == -1) {
-      cerr << "error reading" << endl;
-      return 0;
+      cerr << "Could not write to dst_file" << endl;
+      return 1;
     }
     int putBytes = UFS_BLOCK_SIZE;
     if (bytesToRead < putBytes) putBytes = bytesToRead;
