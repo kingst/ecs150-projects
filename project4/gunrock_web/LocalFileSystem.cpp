@@ -554,6 +554,8 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   if (name == "." || name == "..") return -EUNLINKNOTALLOWED;
 
+  if (name.length() < 1 || name.length() > DIR_ENT_NAME_SIZE) return -EINVALIDNAME;
+
   super_t super;
   readSuperBlock(&super);
   inode_t inodes[super.num_inodes];
