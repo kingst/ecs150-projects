@@ -22,10 +22,15 @@ int main(int argc, char *argv[]) {
   int parentInode = stoi(argv[2]);
   string fileName = string(argv[3]);
 
-  fileSystem->create(parentInode, UFS_REGULAR_FILE, fileName);
+  int ret = fileSystem->create(parentInode, UFS_REGULAR_FILE, fileName);
 
   delete fileSystem;
   delete disk;
+
+  if (ret < 0) {
+    cerr << "Error creating file" << endl;
+    return 1;
+  }
   
   return 0;
 }

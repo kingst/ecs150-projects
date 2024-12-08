@@ -22,10 +22,15 @@ int main(int argc, char *argv[]) {
   int parentInode = stoi(argv[2]);
   string directory = string(argv[3]);
   
-  fileSystem->create(parentInode, UFS_DIRECTORY, directory);
+  int ret = fileSystem->create(parentInode, UFS_DIRECTORY, directory);
 
   delete fileSystem;
   delete disk;
+
+  if (ret < 0) {
+    cerr << "Error creating directory" << endl;
+    return 1;
+  }
   
   return 0;
 }
