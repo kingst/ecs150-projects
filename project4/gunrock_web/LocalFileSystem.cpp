@@ -29,7 +29,6 @@ void printInodeSizes(inode_t *inodes, int numInodes) {
 }
 
 void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap) {
-
   int bitmapAddr = super->inode_bitmap_addr;
   int bitmapBlocks = super->inode_bitmap_len;
   int unreadBits = super->num_inodes;
@@ -39,7 +38,9 @@ void LocalFileSystem::readInodeBitmap(super_t *super, unsigned char *inodeBitmap
     this->disk->readBlock(bitmapAddr, buffer);
     int bitsToRead = 4096;
     if (unreadBits < 4096) bitsToRead = unreadBits;
-    memcpy(inodeBitmap + i * 4096, buffer, bitsToRead / 8);
+    int bytesToRead = bitsToRead / 8;
+    if (bitsToRead % 8) bytesToRead ++;
+    memcpy(inodeBitmap + i * 4096, buffer, bytesToRead);
     unreadBits -= bitsToRead;
   }
 }
@@ -63,9 +64,6 @@ void LocalFileSystem::writeInodeBitmap(super_t *super, unsigned char *inodeBitma
 }
 
 void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap) {
-  inode_t inodes[super->num_inodes];
-  readInodeRegion(super, inodes);
-
   int bitmapAddr = super->data_bitmap_addr;
   int bitmapBlocks = super->data_bitmap_len;
   int unreadBits = super->num_data;
@@ -75,7 +73,9 @@ void LocalFileSystem::readDataBitmap(super_t *super, unsigned char *dataBitmap) 
     this->disk->readBlock(bitmapAddr + i, buffer);
     int bitsToRead = 4096;
     if (unreadBits < 4096) bitsToRead = unreadBits;
-    memcpy(dataBitmap + i * 4096, buffer, bitsToRead / 8);
+    int bytesToRead = bitsToRead / 8;
+    if (bitsToRead % 8) bytesToRead ++;
+    memcpy(dataBitmap + i * 4096, buffer, bytesToRead);
     unreadBits -= bitsToRead;
   }
 }
@@ -319,7 +319,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
   int freeInodeNum = firstEmptyBit(inodeBitmap, inodeBitmapSize);
-  if (freeInodeNum < 0) {  // no more free inodes
+  if (freeInodeNum < 0 || freeInodeNum >= super.num_inodes) {  // no more free inodes
     return -ENOTENOUGHSPACE;
   }
 
@@ -355,7 +355,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     if (i >= blocksToRead) {
       // allocate new data block for direct pointer to point to:
       int freeDataBit = firstEmptyBit(dataBitmap, dataBitmapSize);  // get first unallocated bit in data bitmap
-      if (freeDataBit < 0) {  // no more free data blocks
+      if (freeDataBit < 0 || freeDataBit >= super.num_data) {  // no more free data blocks
         return -ENOTENOUGHSPACE;
       }
       // allocate a new block to the parent
@@ -402,7 +402,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   if (type == UFS_DIRECTORY) {
     // claim a data block for the directory
     int freeDataBit = firstEmptyBit(dataBitmap, dataBitmapSize);
-    if (freeDataBit < 0) {  // no more free data blocks
+    if (freeDataBit < 0 || freeDataBit >= super.num_data) {  // no more free data blocks
       return -ENOTENOUGHSPACE;
     }
     setBitmapBit(dataBitmap, freeDataBit, 1);
