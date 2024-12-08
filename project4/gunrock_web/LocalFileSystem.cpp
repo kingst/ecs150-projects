@@ -173,16 +173,6 @@ int LocalFileSystem::lookup(int parentInodeNumber, string name) {
   return -ENOTFOUND;
 }
 
-int LocalFileSystem::stat(int inodeNumber, inode_t *inode) {
-  super_t super;
-  readSuperBlock(&super);
-  int numInodes = super.num_inodes;
-  inode_t inodes[numInodes];
-  readInodeRegion(&super, inodes);
-  memcpy(inode, &inodes[inodeNumber], sizeof(inode_t));
-  return 0;
-}
-
 bool bitIsSet(int index, unsigned char *bitmap) {
   int byte = index / 8; 
   int offset = index % 8;
@@ -191,6 +181,31 @@ bool bitIsSet(int index, unsigned char *bitmap) {
   bit %= 2;
   if (bit == 1) return true;
   return false;
+}
+
+// returns -1 if inode doesn't exist
+int LocalFileSystem::stat(int inodeNumber, inode_t *inode) {
+  super_t super;
+  readSuperBlock(&super);
+
+  if (inodeNumber < 0 || inodeNumber >= super.num_inodes) {
+    return -1;
+  }
+
+  int inodeBitmapSize = super.num_inodes / 8;
+  if (super.num_inodes % 8) inodeBitmapSize ++;
+  unsigned char inodeBitmap[inodeBitmapSize];
+  readInodeBitmap(&super, inodeBitmap);
+
+  if (!bitIsSet(inodeNumber, inodeBitmap)) {
+    return -1;
+  }
+
+  int numInodes = super.num_inodes;
+  inode_t inodes[numInodes];
+  readInodeRegion(&super, inodes);
+  memcpy(inode, &inodes[inodeNumber], sizeof(inode_t));
+  return 0;
 }
 
 int LocalFileSystem::read(int inodeNumber, void *buffer, int size) {

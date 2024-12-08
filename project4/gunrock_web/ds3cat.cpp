@@ -25,14 +25,13 @@ int main(int argc, char *argv[]) {
   fileSystem->readSuperBlock(&super);
 
   inode_t inode;
-  fileSystem->stat(inodeNumber, &inode);
+  int ret = fileSystem->stat(inodeNumber, &inode);
 
-  if (inode.type != UFS_REGULAR_FILE) {
+  if (ret < 0 || inode.type != UFS_REGULAR_FILE) {
     cerr << "Error reading file" << endl;
     return 1;
   }
   
-  // cout << inode.size << endl;
   int numBlocks = inode.size / UFS_BLOCK_SIZE;
   if (inode.size % UFS_BLOCK_SIZE) numBlocks ++;
 
