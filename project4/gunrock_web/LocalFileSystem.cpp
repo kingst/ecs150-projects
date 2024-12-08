@@ -238,6 +238,11 @@ void printBitmapBinary(unsigned char *bitmap, int bytes) {
   cout << endl;
 }
 
+/**
+ * returns first empty bit in data bitmap (first indirect block num of available data block)
+ * if no available data blocks (bitmap is full), return -1
+ * note: if num_data isn't multiple of 8, this can return a block num greater than num_data
+ */
 int firstEmptyBit(unsigned char *bitmap, int bytes) {
   for (int i = 0; i < bytes; i ++) {
     unsigned int curr = bitmap[i];
@@ -454,54 +459,55 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
 }
 
 int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
-  if (size < 0) {
-    return -EINVALIDSIZE;
-  }
-
   const char* readBuffer = static_cast<const char*>(buffer);
-
-  // calculate how many blocks needed
-  int blocksNeeded = size / UFS_BLOCK_SIZE;
-  if (size % UFS_BLOCK_SIZE) blocksNeeded ++;
-  if (blocksNeeded > DIRECT_PTRS) blocksNeeded = DIRECT_PTRS;
 
   super_t super;
   readSuperBlock(&super);
 
-  // inode of this number doesn't exist
-  if (inodeNumber < 0 || inodeNumber >= super.num_inodes) {
-    return -EINVALIDINODE;
-  }
-
   inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
   inode_t fileInode = inodes[inodeNumber];
+
+  int dataBitmapSize = super.num_data / 8;
+  if (super.num_data % 8) dataBitmapSize ++;
+  unsigned char dataBitmap[dataBitmapSize];
+  readDataBitmap(&super, dataBitmap);
+
+  if (size < 0) {
+    return -EINVALIDSIZE;
+  }
+
+  // the inode doesn't exist
+  if (inodeNumber < 0 || inodeNumber >= super.num_inodes) {
+    return -EINVALIDINODE;
+  }
 
   // isn't a file (we can't write to directories)
   if (fileInode.type != UFS_REGULAR_FILE) {
     return -EINVALIDTYPE;
   }
 
+  // calculate how many blocks needed
+  int blocksNeeded = size / UFS_BLOCK_SIZE;
+  if (size % UFS_BLOCK_SIZE) blocksNeeded ++;
+  if (blocksNeeded > DIRECT_PTRS) blocksNeeded = DIRECT_PTRS;
+
   // check how many blocks currently used
   int blocksUsed = fileInode.size / UFS_BLOCK_SIZE;
   if (fileInode.size % UFS_BLOCK_SIZE) blocksUsed ++;
-
-  int dataBitmapSize = super.num_data / 8;
-  if (super.num_data % 8) dataBitmapSize ++;
-
-  unsigned char dataBitmap[dataBitmapSize];
-  readDataBitmap(&super, dataBitmap);
 
   // need to allocate more blocks
   if (blocksNeeded > blocksUsed) {
     for (int i = 0; i < blocksNeeded - blocksUsed; i ++) {
       // find first unused block
       int dataBit = firstEmptyBit(dataBitmap, dataBitmapSize);
+      if (dataBit < 0 || dataBit >= super.num_data) {  // no more free data blocks
+        break;
+      }
       int dataBlockNum = super.data_region_addr + dataBit;
 
       // set bitmap bit
       setBitmapBit(dataBitmap, dataBit, 1);
-      writeDataBitmap(&super, dataBitmap);
 
       // set direct pointer
       int directIdx = blocksUsed + i;
@@ -518,7 +524,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 
       // set bitmap bit
       setBitmapBit(dataBitmap, dataBit, 0);
-      writeDataBitmap(&super, dataBitmap);
 
       // free direct pointer
       fileInode.direct[directIdx] = -1;
@@ -527,7 +532,6 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 
   // write to the data blocks
 
-  fileInode.size = 0;
   int bytesToWrite = size;
 
   // iterate over direct pointers to data blocks
@@ -542,15 +546,17 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
     memcpy(writeBuf, readBuffer + directIdx * UFS_BLOCK_SIZE, writingBytes);
 
     this->disk->writeBlock(blockNum, writeBuf);
-    fileInode.size += writingBytes;
     bytesToWrite -= writingBytes;
   }
 
+  int newFileSize = size - bytesToWrite;
+  fileInode.size = newFileSize;
+
   inodes[inodeNumber] = fileInode;
   writeInodeRegion(&super, inodes);
+  writeDataBitmap(&super, dataBitmap);
 
-  // if any bytes to write are remaining, we didn't write the whole buffer
-  return size - bytesToWrite;
+  return newFileSize;
 }
 
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {
