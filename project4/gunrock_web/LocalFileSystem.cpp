@@ -540,19 +540,29 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 }
 
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {
+  if (name == "." || name == "..") return -EUNLINKNOTALLOWED;
+
   super_t super;
   readSuperBlock(&super);
   inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
 
+  if (parentInodeNumber < 0 || parentInodeNumber >= super.num_inodes) {
+    return -EINVALIDINODE;
+  }
+
   // get parent inode
   inode_t parentInode = inodes[parentInodeNumber];
+  if (parentInode.type != UFS_DIRECTORY) {
+    return -EINVALIDINODE;
+  }
 
   // get item inode
   int inodeNum = lookup(parentInodeNumber, name);
-  if (inodeNum == -ENOTFOUND || inodeNum == -EINVALIDINODE) {
-    cerr << "Error removing entry" << endl;
-    return 1;
+
+  // item doesn't exist
+  if (inodeNum < 0) {
+    return 0;  // do nothing
   }
   inode_t inode = inodes[inodeNum];
 
@@ -561,8 +571,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name) {
     // check for contents (if directory isn't empty, it's an error)
     // empty directory has 2 entries: . and ..
     if (inode.size != 2 * sizeof(dir_ent_t)) {
-      cerr << "Error removing entry" << endl;
-      return 1;
+      return -EDIRNOTEMPTY;
     }
   }
 

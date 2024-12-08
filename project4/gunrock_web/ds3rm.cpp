@@ -23,14 +23,15 @@ int main(int argc, char *argv[]) {
   int parentInode = stoi(argv[2]);
   string entryName = string(argv[3]);
   
-
- if (fileSystem->unlink(parentInode, entryName) != 0) {
-  cerr << "Error unable to remove entry (look up the write string)" << endl;
-  return 1;
- }
+  int ret = fileSystem->unlink(parentInode, entryName);
 
   delete fileSystem;
   delete disk;
+
+  if (ret < 0) {
+    cerr << "Error removing entry" << endl;
+    return 1;
+  }
 
   return 0;
 }
