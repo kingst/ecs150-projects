@@ -144,27 +144,26 @@ void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes) {
 
 int LocalFileSystem::lookup(int parentInodeNumber, string name) {
   inode_t parentInode;
-  stat(parentInodeNumber, &parentInode);
-  if (parentInode.type != UFS_DIRECTORY) {
-    return -1;
+
+  int ret = stat(parentInodeNumber, &parentInode);
+
+  if (ret < 0 || parentInode.type != UFS_DIRECTORY) {
+    return -EINVALIDINODE;
   }
 
-  for (int i = 0; i < DIRECT_PTRS; i ++) {
-    // cout << "reading ptr " << i << " to block " << parentInode.direct[i] << endl;
-    if (parentInode.direct[i] < 0 || parentInode.direct[i] > MAX_FILE_SIZE) {
-      // cout << "block num less than 1" << endl;
-      break;
-    }
+  int parentBlocks = parentInode.size / UFS_BLOCK_SIZE;
+  if (parentInode.size % UFS_BLOCK_SIZE) parentBlocks ++;
+
+  // iterate through direct pointer array
+  for (int i = 0; i < parentBlocks; i ++) {
     char buffer[4096];
     this->disk->readBlock(parentInode.direct[i], buffer);
     dir_ent_t entry; 
 
     for (int j = 0; j < 4096; j += sizeof(dir_ent_t)) {
       memcpy(&entry, buffer + j, sizeof(dir_ent_t));
-      // cout << entry.name << ", ";
       
       if (strcmp(entry.name, name.c_str()) == 0) {
-        // cout << "found " << entry.name << ", inode number = " << entry.inum << endl; 
         return entry.inum;
       }
     }
