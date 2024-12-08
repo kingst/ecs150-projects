@@ -284,13 +284,22 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   super_t super;
   readSuperBlock(&super);
 
+  inode_t inodes[super.num_inodes];
+  readInodeRegion(&super, inodes);
+  inode_t parentInode = inodes[parentInodeNumber];
+
+  if (name.length() < 1 || name.length() > DIR_ENT_NAME_SIZE) {
+    return -EINVALIDNAME;
+  }
+
   // parent inode doesn't exist
   if (parentInodeNumber < 0 || parentInodeNumber >= super.num_inodes) {
     return -EINVALIDINODE;
   }
 
-  inode_t inodes[super.num_inodes];
-  readInodeRegion(&super, inodes);
+  if (parentInode.type != UFS_DIRECTORY) {
+    return -EINVALIDINODE;
+  }
 
   int existingInodeNum = lookup(parentInodeNumber, name);
 
@@ -309,7 +318,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
 
   int dataBitmapSize = super.num_data / 8;
   if (super.num_data % 8) dataBitmapSize += 1;
-
   unsigned char dataBitmap[dataBitmapSize];
   readDataBitmap(&super, dataBitmap);  // this is modifying inodes??
 
@@ -319,24 +327,18 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
   int freeInodeNum = firstEmptyBit(inodeBitmap, inodeBitmapSize);
+  
   if (freeInodeNum < 0 || freeInodeNum >= super.num_inodes) {  // no more free inodes
     return -ENOTENOUGHSPACE;
   }
 
   // set up inode
   setBitmapBit(inodeBitmap, freeInodeNum, 1);
-  
   inode_t newInode;
   newInode.type = type;
   newInode.size = 0;
 
-  inodes[freeInodeNum] = newInode; //
-
-  inode_t parentInode = inodes[parentInodeNumber];
-
-  if (parentInode.type != UFS_DIRECTORY) {
-    return -EINVALIDINODE;
-  }
+  inodes[freeInodeNum] = newInode;
 
   int bytesToRead = parentInode.size;
   int blocksToRead = bytesToRead / 4096;

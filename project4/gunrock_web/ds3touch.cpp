@@ -8,6 +8,8 @@
 
 using namespace std;
 
+// 21: rc of 1
+// 22: rc of 1
 int main(int argc, char *argv[]) {
   if (argc != 4) {
     cerr << argv[0] << ": diskImageFile parentInode fileName" << endl;
