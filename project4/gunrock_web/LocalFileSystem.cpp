@@ -281,7 +281,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   readSuperBlock(&super);
 
   // parent inode doesn't exist
-  if (parentInodeNumber < 0 || parentInodeNumber > super.num_inodes) {
+  if (parentInodeNumber < 0 || parentInodeNumber >= super.num_inodes) {
     return -EINVALIDINODE;
   }
 
