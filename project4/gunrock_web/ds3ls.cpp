@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
   vector<dir_ent_t> files;  // files in the directory
   int inodeSize = currInode.size;  // 
   char buffer[inodeSize];
-  fileSystem->read(currInodeNum, buffer, inodeSize);
+  fileSystem->read(currInodeNum, buffer, inodeSize);  //
 
   int bytesToRead = currInode.size;  // this will be decremented as we read bytes
   // cout << "this directory has " << bytesToRead << " bytes to read" << endl;

@@ -267,9 +267,22 @@ void setEntryName(dir_ent_t *entry, string name) {
   entry->name[name.length()] = '\0';
 }
 
-// todo: consider case where direct pointers are full
-// todo: consider case where all inodes are used
-// todo: consider case where all datas are used
+void printCreateError(int type) {
+  if (type == UFS_DIRECTORY) {
+    cerr << "Error creating directory" << endl;
+  } else {
+    cerr << "Error creating file" << endl;
+  }
+}
+
+/**
+ * TODO edge cases
+ * [ X ] no more data blocks, create directory (need data block for . and ..)
+ * [ X ] directory needs new block and there are more blocks
+ * [ X ] no more data blocks but directory needs new block (implemented not tested)
+ * [ X ] no more inodes, can't create file or directory
+ * 
+ */
 
 int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   // cout << "starting create" << endl;
@@ -286,11 +299,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     if (existingInode.type == type) {
       return 0;
     } else {
-      if (type == UFS_DIRECTORY) {
-        cerr << "Error creating directory" << endl;
-      } else {
-        cerr << "Error creating file" << endl;
-      }
+      printCreateError(type);
       return 1;
     }
   }
@@ -302,11 +311,15 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   unsigned char inodeBitmap[super.num_inodes / 8];
   readInodeBitmap(&super, inodeBitmap);
 
-  int freeInodeNum = firstEmptyBit(inodeBitmap, super.num_inodes);
+  int freeInodeNum = firstEmptyBit(inodeBitmap, super.num_inodes / 8);
+  if (freeInodeNum == -1) {  // no more free inodes
+    printCreateError(type);
+    return 1;
+  }
 
   // set up inode
   setBitmapBit(inodeBitmap, freeInodeNum, 1);
-  writeInodeBitmap(&super, inodeBitmap); 
+  
   inode_t newInode;
   newInode.type = type;
   newInode.size = 0;
@@ -330,10 +343,17 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     // direct pointer not allocated: previous direct pointers' blocks were full
     if (i >= blocksToRead) {
       // allocate new data block for direct pointer to point to:
-      int freeDataBit = firstEmptyBit(dataBitmap, super.num_data);  // get first unallocated bit in data bitmap
+      int freeDataBit = firstEmptyBit(dataBitmap, super.num_data / 8);  // get first unallocated bit in data bitmap
+      if (freeDataBit == -1) {  // no more free data blocks
+        printCreateError(type);
+        return 1;
+      }
+      // allocate a new block to the parent
+      // update data bitmap (not synced yet)
       setBitmapBit(dataBitmap, freeDataBit, 1);  // set data bitmap bit (allocate block)
-      writeDataBitmap(&super, dataBitmap);
       int newDirectoryBlockNum = freeDataBit + super.data_region_addr;
+      // update parent direct pointer
+      parentInode.direct[i] = newDirectoryBlockNum;
       // cout << "parent direct pointer " << i << " not set, allocating block " << newDirectoryBlockNum;
 
       // read in our new block
@@ -357,8 +377,9 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     }
   }
 
+  // couldn't find block to write back to, parent is out of direct pointers
   if (wbBlock == -1) {
-    cerr << "how am i here" << endl;
+    printCreateError(type);
     return 1;
   }
 
@@ -366,15 +387,19 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   setEntryName(&newEntry, name);
   newEntry.inum = freeInodeNum;
   memcpy(blockBuffer + newEntryOffset, &newEntry, sizeof(dir_ent_t));
-  inodes[parentInodeNumber].size += sizeof(dir_ent_t);
+  parentInode.size += sizeof(dir_ent_t);
   
 
   // if we made a directory, we need to add entries . and ..
   if (type == UFS_DIRECTORY) {
     // claim a data block for the directory
-    int freeDataBit = firstEmptyBit(dataBitmap, super.num_data);
+    int freeDataBit = firstEmptyBit(dataBitmap, super.num_data / 8);
+    if (freeDataBit == -1) {  // no more free data blocks
+      printCreateError(type);
+      return 1;
+    }
     setBitmapBit(dataBitmap, freeDataBit, 1);
-    writeDataBitmap(&super, dataBitmap);
+    
     int dataBlockAddr = freeDataBit + super.data_region_addr;
 
     // point first direct pointer to the new data block
@@ -403,7 +428,17 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     inodes[freeInodeNum].size = 2 * sizeof(dir_ent_t);
   }
 
+  // sync data bitmap
+  writeDataBitmap(&super, dataBitmap);
+
+  // sync inode bitmap
+  writeInodeBitmap(&super, inodeBitmap); 
+
+  // sync inode region
+  inodes[parentInodeNumber] = parentInode;
   writeInodeRegion(&super, inodes);
+
+  // sync parent directory data region
   this->disk->writeBlock(wbBlock, blockBuffer);  // write into parent directory's data
 
   return 0;
@@ -439,7 +474,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   if (blocksNeeded > blocksUsed) {
     for (int i = 0; i < blocksNeeded - blocksUsed; i ++) {
       // find first unused block
-      int dataBit = firstEmptyBit(dataBitmap, super.num_data);
+      int dataBit = firstEmptyBit(dataBitmap, super.num_data / 8);
       int dataBlockNum = super.data_region_addr + dataBit;
 
       // set bitmap bit
