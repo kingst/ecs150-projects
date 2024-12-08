@@ -187,7 +187,8 @@ bool bitIsSet(int index, unsigned char *bitmap) {
   int byte = index / 8; 
   int offset = index % 8;
   int chosenByte = bitmap[byte];
-  int bit = chosenByte >> (8 - offset - 1);
+  int bit = chosenByte >> offset;
+  bit %= 2;
   if (bit == 1) return true;
   return false;
 }
@@ -293,12 +294,23 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   readInodeRegion(&super, inodes);
   inode_t parentInode = inodes[parentInodeNumber];
 
+  int dataBitmapSize = super.num_data / 8;
+  if (super.num_data % 8) dataBitmapSize += 1;
+  unsigned char dataBitmap[dataBitmapSize];
+  readDataBitmap(&super, dataBitmap); 
+
+  // get first unallocated bit in inode bitmap
+  int inodeBitmapSize = super.num_inodes / 8;
+  if (super.num_inodes % 8) inodeBitmapSize ++;
+  unsigned char inodeBitmap[inodeBitmapSize];
+  readInodeBitmap(&super, inodeBitmap);
+
   if (name.length() < 1 || name.length() >= DIR_ENT_NAME_SIZE) {
     return -EINVALIDNAME;
   }
 
   // parent inode doesn't exist
-  if (parentInodeNumber < 0 || parentInodeNumber >= super.num_inodes) {
+  if (parentInodeNumber < 0 || parentInodeNumber >= super.num_inodes || !bitIsSet(parentInodeNumber, inodeBitmap)) {
     return -EINVALIDINODE;
   }
 
@@ -321,16 +333,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     }
   }
 
-  int dataBitmapSize = super.num_data / 8;
-  if (super.num_data % 8) dataBitmapSize += 1;
-  unsigned char dataBitmap[dataBitmapSize];
-  readDataBitmap(&super, dataBitmap);  // this is modifying inodes??
-
-  // get first unallocated bit in inode bitmap
-  int inodeBitmapSize = super.num_inodes / 8;
-  if (super.num_inodes % 8) inodeBitmapSize ++;
-  unsigned char inodeBitmap[inodeBitmapSize];
-  readInodeBitmap(&super, inodeBitmap);
   int freeInodeNum = firstEmptyBit(inodeBitmap, inodeBitmapSize);
   
   if (freeInodeNum < 0 || freeInodeNum >= super.num_inodes) {  // no more free inodes
@@ -473,12 +475,17 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   unsigned char dataBitmap[dataBitmapSize];
   readDataBitmap(&super, dataBitmap);
 
+  int inodeBitmapSize = super.num_inodes / 8;
+  if (super.num_inodes % 8) inodeBitmapSize ++;
+  unsigned char inodeBitmap[inodeBitmapSize];
+  readInodeBitmap(&super, inodeBitmap);
+
   if (size < 0) {
     return -EINVALIDSIZE;
   }
 
   // the inode doesn't exist
-  if (inodeNumber < 0 || inodeNumber >= super.num_inodes) {
+  if (inodeNumber < 0 || inodeNumber >= super.num_inodes || !bitIsSet(inodeNumber, inodeBitmap)) {
     return -EINVALIDINODE;
   }
 
@@ -569,13 +576,18 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
 
+  int inodeBitmapSize = super.num_inodes / 8;
+  if (super.num_inodes % 8) inodeBitmapSize ++;
+  unsigned char inodeBitmap[inodeBitmapSize];
+  readInodeBitmap(&super, inodeBitmap);
+
   if (parentInodeNumber < 0 || parentInodeNumber >= super.num_inodes) {
     return -EINVALIDINODE;
   }
 
   // get parent inode
   inode_t parentInode = inodes[parentInodeNumber];
-  if (parentInode.type != UFS_DIRECTORY) {
+  if (parentInode.type != UFS_DIRECTORY || !bitIsSet(parentInodeNumber, inodeBitmap)) {
     return -EINVALIDINODE;
   }
 
@@ -624,12 +636,7 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   // set inode size to 0
   inode.size = 0;
 
-  int inodeBitmapSize = super.num_inodes / 8;
-  if (super.num_inodes % 8) inodeBitmapSize ++;
-
   // clear inode bitmap bit
-  unsigned char inodeBitmap[inodeBitmapSize];
-  readInodeBitmap(&super, inodeBitmap);
   setBitmapBit(inodeBitmap, inodeNum, 0);
 
   // sync inode bitmap changes
