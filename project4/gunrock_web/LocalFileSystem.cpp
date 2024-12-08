@@ -285,12 +285,15 @@ void printCreateError(int type) {
  */
 
 int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
-  // cout << "starting create" << endl;
   super_t super;
   readSuperBlock(&super);
-  int numInodes = super.num_inodes;
 
-  inode_t inodes[numInodes];
+  if (parentInodeNumber < 0 || parentInodeNumber > super.num_inodes) {
+    printCreateError(type);
+    return 1;
+  }
+
+  inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
 
   int existingInodeNum = lookup(parentInodeNumber, name);
@@ -302,6 +305,9 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
       printCreateError(type);
       return 1;
     }
+  } else {
+    printCreateError(type);
+    return 1;
   }
 
   unsigned char dataBitmap[super.num_data / 8];
@@ -310,9 +316,8 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   // get first unallocated bit in inode bitmap
   unsigned char inodeBitmap[super.num_inodes / 8];
   readInodeBitmap(&super, inodeBitmap);
-
   int freeInodeNum = firstEmptyBit(inodeBitmap, super.num_inodes / 8);
-  if (freeInodeNum == -1) {  // no more free inodes
+  if (freeInodeNum < 0) {  // no more free inodes
     printCreateError(type);
     return 1;
   }
@@ -344,7 +349,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     if (i >= blocksToRead) {
       // allocate new data block for direct pointer to point to:
       int freeDataBit = firstEmptyBit(dataBitmap, super.num_data / 8);  // get first unallocated bit in data bitmap
-      if (freeDataBit == -1) {  // no more free data blocks
+      if (freeDataBit < 0) {  // no more free data blocks
         printCreateError(type);
         return 1;
       }
@@ -378,7 +383,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   }
 
   // couldn't find block to write back to, parent is out of direct pointers
-  if (wbBlock == -1) {
+  if (wbBlock < 0) {
     printCreateError(type);
     return 1;
   }
@@ -389,12 +394,11 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   memcpy(blockBuffer + newEntryOffset, &newEntry, sizeof(dir_ent_t));
   parentInode.size += sizeof(dir_ent_t);
   
-
   // if we made a directory, we need to add entries . and ..
   if (type == UFS_DIRECTORY) {
     // claim a data block for the directory
     int freeDataBit = firstEmptyBit(dataBitmap, super.num_data / 8);
-    if (freeDataBit == -1) {  // no more free data blocks
+    if (freeDataBit < 0) {  // no more free data blocks
       printCreateError(type);
       return 1;
     }
