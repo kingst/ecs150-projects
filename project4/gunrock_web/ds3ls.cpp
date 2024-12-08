@@ -46,12 +46,7 @@ int main(int argc, char *argv[]) {
   LocalFileSystem *fileSystem = new LocalFileSystem(disk);
   string directory = string(argv[2]);
   
-  // cout << directory << endl;
   vector<string> pathDirectories = splitStringByDelimiter(directory, "/");
-  // for (int i = 0; i < (int) pathDirectories.size(); i ++) {
-  //   cout << pathDirectories[i] << " ";
-  // }
-  // cout << endl;
 
   int currInodeNum = 0;
   for (int i = 0; i < (int) pathDirectories.size(); i ++) {
@@ -64,12 +59,9 @@ int main(int argc, char *argv[]) {
 
   super_t super;
   fileSystem->readSuperBlock(&super);
-  int numInodes = super.num_inodes;
 
-  inode_t inodes[numInodes];
-  fileSystem->readInodeRegion(&super, inodes);
-
-  inode_t currInode = inodes[currInodeNum];
+  inode_t currInode ;
+  fileSystem->stat(currInodeNum, &currInode);
 
   if (currInode.type == UFS_REGULAR_FILE) {
     cout << currInodeNum << "\t" << pathDirectories.back() << endl;
