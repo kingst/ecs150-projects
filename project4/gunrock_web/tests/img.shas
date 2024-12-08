@@ -1,2 +1,4 @@
 e59967feff79a41bffb820ed0740678d15be2982  tests/disk_images/a.img
+486de2a0ca8db3838cee5f23dfeaa82c7f4fe1c8  tests/disk_images/b.img
 a2ae00440932be6a0311426ad9ec6472cf9c4070  tests/disk_images/big_directory.img
+1ae7e99d077cc95f47ab09b858ac017a17e0f417  tests/disk_images/c.img
