@@ -40,21 +40,27 @@ int main(int argc, char *argv[]) {
   cout << "num_data " << super.num_data << endl;
   cout << endl;
 
-  unsigned char inodeBitmap[super.num_inodes];
+  int inodeBitmapSize = super.num_inodes / 8;
+  if (super.num_inodes % 8) inodeBitmapSize ++;
+
+  int dataBitmapSize = super.num_data / 8;
+  if (super.num_data % 8) dataBitmapSize ++;
+
+  unsigned char inodeBitmap[inodeBitmapSize];
   fileSystem->readInodeBitmap(&super, inodeBitmap);
-  unsigned char dataBitmap[super.num_data];
+  unsigned char dataBitmap[dataBitmapSize];
   fileSystem->readDataBitmap(&super, dataBitmap);
 
   // cout << inodeBitmap << endl;
   // cout << dataBitmap << endl;
 
   cout << "Inode bitmap" << endl;
-  printBitmap(inodeBitmap, super.num_inodes / 8);
+  printBitmap(inodeBitmap, inodeBitmapSize);
 
   cout << endl;
 
   cout << "Data bitmap" << endl;
-  printBitmap(dataBitmap, super.num_data / 8);
+  printBitmap(dataBitmap, dataBitmapSize);
 
   delete fileSystem;
   delete disk;
