@@ -293,7 +293,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   readInodeRegion(&super, inodes);
   inode_t parentInode = inodes[parentInodeNumber];
 
-  if (name.length() < 1 || name.length() > DIR_ENT_NAME_SIZE) {
+  if (name.length() < 1 || name.length() >= DIR_ENT_NAME_SIZE) {
     return -EINVALIDNAME;
   }
 
@@ -562,7 +562,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
 int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   if (name == "." || name == "..") return -EUNLINKNOTALLOWED;
 
-  if (name.length() < 1 || name.length() > DIR_ENT_NAME_SIZE) return -EINVALIDNAME;
+  if (name.length() < 1 || name.length() >= DIR_ENT_NAME_SIZE) return -EINVALIDNAME;
 
   super_t super;
   readSuperBlock(&super);
