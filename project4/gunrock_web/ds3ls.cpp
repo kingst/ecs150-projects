@@ -61,7 +61,11 @@ int main(int argc, char *argv[]) {
   fileSystem->readSuperBlock(&super);
 
   inode_t currInode ;
-  fileSystem->stat(currInodeNum, &currInode);
+  int ret = fileSystem->stat(currInodeNum, &currInode);
+
+  if (ret == -1) {
+    cerr << "Directory not found" << endl;
+  }
 
   if (currInode.type == UFS_REGULAR_FILE) {
     cout << currInodeNum << "\t" << pathDirectories.back() << endl;
