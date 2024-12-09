@@ -489,7 +489,7 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
 
-  if (size < 0) {
+  if (size < 0 || size > MAX_FILE_SIZE) {
     return -EINVALIDSIZE;
   }
 
