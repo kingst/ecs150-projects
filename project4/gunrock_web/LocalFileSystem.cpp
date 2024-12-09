@@ -182,22 +182,22 @@ bool bitIsSet(int index, unsigned char *bitmap) {
   return false;
 }
 
-// returns -1 if inode doesn't exist
 int LocalFileSystem::stat(int inodeNumber, inode_t *inode) {
   super_t super;
   readSuperBlock(&super);
 
   if (inodeNumber < 0 || inodeNumber >= super.num_inodes) {
-    return -1;
+    return -EINVALIDINODE;
   }
 
-  int inodeBitmapSize = super.num_inodes / 8;
-  if (super.num_inodes % 8) inodeBitmapSize ++;
+  // int inodeBitmapSize = super.num_inodes / 8;
+  // if (super.num_inodes % 8) inodeBitmapSize ++;
+  int inodeBitmapSize = super.inode_bitmap_len * UFS_BLOCK_SIZE;
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
 
   if (!bitIsSet(inodeNumber, inodeBitmap)) {
-    return -1;
+    return -EINVALIDINODE;
   }
 
   int numInodes = super.num_inodes;
@@ -208,39 +208,31 @@ int LocalFileSystem::stat(int inodeNumber, inode_t *inode) {
 }
 
 int LocalFileSystem::read(int inodeNumber, void *buffer, int size) {
-  // todo: fix this super janky implementation it's not even correct
+  if (size < 0 || size > MAX_FILE_SIZE) return -EINVALIDSIZE;
 
   super_t super;
   readSuperBlock(&super);
-  int numInodes = super.num_inodes;
 
-  inode_t inodes[numInodes];
+  if (inodeNumber < 0 || inodeNumber >= super.num_inodes) return -EINVALIDINODE;
+
+  inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
   inode_t inode = inodes[inodeNumber];
 
   char* charBuffer = static_cast<char*>(buffer);
-  // cout << "size of charBuffer is " << sizeof(charBuffer) << endl;
-  // cout << charBuffer << endl;
 
   int bytesToRead = inode.size;
   int blocksToRead = bytesToRead / 4096;
   if (bytesToRead % 4096) blocksToRead ++;
-
-  // cout << "reading " << bytesToRead << " bytes from " << blocksToRead << " blocks" << endl;
 
   for (int i = 0; i < blocksToRead; i ++) {
     char blockBuffer[4096];
     this->disk->readBlock(inode.direct[i], blockBuffer);
     int readingBytes = 4096;
     if (bytesToRead < 4096) readingBytes = bytesToRead;
-    // cout << readingBytes << " from block " << inode.direct[i] << endl;
     memcpy(charBuffer + i * 4096, blockBuffer, readingBytes);
-    // cout << charBuffer << endl;
     bytesToRead -= readingBytes;
   }
-
-  // cout << charBuffer << endl;
-  // cout << "done with read" << endl;
 
   return size;
 }
@@ -308,14 +300,16 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   readInodeRegion(&super, inodes);
   inode_t parentInode = inodes[parentInodeNumber];
 
-  int dataBitmapSize = super.num_data / 8;
-  if (super.num_data % 8) dataBitmapSize += 1;
+  // int dataBitmapSize = super.num_data / 8;
+  // if (super.num_data % 8) dataBitmapSize ++;
+  int dataBitmapSize = super.data_bitmap_len * UFS_BLOCK_SIZE;
   unsigned char dataBitmap[dataBitmapSize];
   readDataBitmap(&super, dataBitmap); 
 
   // get first unallocated bit in inode bitmap
-  int inodeBitmapSize = super.num_inodes / 8;
-  if (super.num_inodes % 8) inodeBitmapSize ++;
+  // int inodeBitmapSize = super.num_inodes / 8;
+  // if (super.num_inodes % 8) inodeBitmapSize ++;
+  int inodeBitmapSize = super.inode_bitmap_len * UFS_BLOCK_SIZE;
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
 
@@ -358,8 +352,6 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
   inode_t newInode;
   newInode.type = type;
   newInode.size = 0;
-
-  inodes[freeInodeNum] = newInode;
 
   int bytesToRead = parentInode.size;
   int blocksToRead = bytesToRead / 4096;
@@ -433,7 +425,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     int dataBlockAddr = freeDataBit + super.data_region_addr;
 
     // point first direct pointer to the new data block
-    inodes[freeInodeNum].direct[0] = dataBlockAddr;
+    newInode.direct[0] = dataBlockAddr;
 
     // make entry for .
     dir_ent_t currDir;
@@ -455,7 +447,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
     this->disk->writeBlock(dataBlockAddr, dataBuffer);
 
     // increase size of the new directory in its inode
-    inodes[freeInodeNum].size = 2 * sizeof(dir_ent_t);
+    newInode.size = 2 * sizeof(dir_ent_t);
   }
 
   // sync data bitmap
@@ -466,6 +458,7 @@ int LocalFileSystem::create(int parentInodeNumber, int type, string name) {
 
   // sync inode region
   inodes[parentInodeNumber] = parentInode;
+  inodes[freeInodeNum] = newInode;
   writeInodeRegion(&super, inodes);
 
   // sync parent directory data region
@@ -484,13 +477,15 @@ int LocalFileSystem::write(int inodeNumber, const void *buffer, int size) {
   readInodeRegion(&super, inodes);
   inode_t fileInode = inodes[inodeNumber];
 
-  int dataBitmapSize = super.num_data / 8;
-  if (super.num_data % 8) dataBitmapSize ++;
+  // int dataBitmapSize = super.num_data / 8;
+  // if (super.num_data % 8) dataBitmapSize ++;
+  int dataBitmapSize = super.data_bitmap_len * UFS_BLOCK_SIZE;
   unsigned char dataBitmap[dataBitmapSize];
   readDataBitmap(&super, dataBitmap);
 
-  int inodeBitmapSize = super.num_inodes / 8;
-  if (super.num_inodes % 8) inodeBitmapSize ++;
+  // int inodeBitmapSize = super.num_inodes / 8;
+  // if (super.num_inodes % 8) inodeBitmapSize ++;
+  int inodeBitmapSize = super.inode_bitmap_len * UFS_BLOCK_SIZE;
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
 
@@ -590,8 +585,9 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   inode_t inodes[super.num_inodes];
   readInodeRegion(&super, inodes);
 
-  int inodeBitmapSize = super.num_inodes / 8;
-  if (super.num_inodes % 8) inodeBitmapSize ++;
+  // int inodeBitmapSize = super.num_inodes / 8;
+  // if (super.num_inodes % 8) inodeBitmapSize ++;
+  int inodeBitmapSize = super.inode_bitmap_len * UFS_BLOCK_SIZE;
   unsigned char inodeBitmap[inodeBitmapSize];
   readInodeBitmap(&super, inodeBitmap);
 
@@ -630,8 +626,9 @@ int LocalFileSystem::unlink(int parentInodeNumber, string name) {
   int fileBlocks = fileBytes / UFS_BLOCK_SIZE;
   if (fileBytes % UFS_BLOCK_SIZE) fileBlocks ++;
 
-  int dataBitmapSize = super.num_data / 8;
-  if (super.num_data % 8) dataBitmapSize ++;
+  // int dataBitmapSize = super.num_data / 8;
+  // if (super.num_data % 8) dataBitmapSize ++;
+  int dataBitmapSize = super.data_bitmap_len * UFS_BLOCK_SIZE;
 
   unsigned char dataBitmap[dataBitmapSize];
   readDataBitmap(&super, dataBitmap);
