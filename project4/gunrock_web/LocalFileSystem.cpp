@@ -119,18 +119,14 @@ void LocalFileSystem::readInodeRegion(super_t *super, inode_t *inodes) {
 void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes) {
   int numInodes = super->num_inodes;
   
-  int blocks = (numInodes  * sizeof(inode_t)) / UFS_BLOCK_SIZE;
+  int blocks = super->inode_region_len;
   int bytesToRead = numInodes * sizeof(inode_t);
-  if (bytesToRead % UFS_BLOCK_SIZE) blocks += 1;
-
-  // cout << "size of inode_t is " << sizeof(inode_t) << endl;
-  // cout << blocks << " blocks with " << bytesToRead << " bytes" << endl;
 
   // iterate over blocks in inode region
   for (int block = 0; block < blocks; block += 1) {
-    char writeBuf[4096];
+    char writeBuf[UFS_BLOCK_SIZE];
     int inodesInBlock = UFS_BLOCK_SIZE / sizeof(inode_t);
-    if (bytesToRead < 4096) inodesInBlock = bytesToRead / sizeof(inode_t);
+    if (bytesToRead < UFS_BLOCK_SIZE) inodesInBlock = bytesToRead / sizeof(inode_t);
 
     // iterate over inodes in the block
     for (int inodeIdx = 0; inodeIdx < inodesInBlock; inodeIdx ++) {
@@ -140,6 +136,8 @@ void LocalFileSystem::writeInodeRegion(super_t *super, inode_t *inodes) {
     int blockNum = super->inode_region_addr + block;
     this->disk->writeBlock(blockNum, writeBuf);
   }
+
+  bytesToRead -= UFS_BLOCK_SIZE;
 }
 
 int LocalFileSystem::lookup(int parentInodeNumber, string name) {

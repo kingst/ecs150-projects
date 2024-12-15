@@ -15,7 +15,6 @@
 using namespace std;
 
 // test case 27 should return 0 (currently not returning 0)
-// forcing error return 0 is still incorrect rc so probably seg fault :(
 int main(int argc, char *argv[]) {
   if (argc != 4) {
     cerr << argv[0] << ": diskImageFile src_file dst_inode" << endl;
