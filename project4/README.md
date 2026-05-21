@@ -171,6 +171,40 @@ inode number, and `..` (dot-dot), which refers to the parent
 directory's inode number. For the root directory in a file system,
 both `.` and `..` refer to the root directory.
 
+#### Directory layout: packed entries
+
+In this project, directories use a **packed-directory** layout. The
+data blocks of a directory hold a contiguous array of `dir_ent_t`
+records starting at offset 0 of the directory's data, with all valid
+entries packed at the front and any free space at the end. There is no
+per-slot "in use" flag — an entry exists if and only if it lies
+within the directory file's size. Concretely:
+
+- The number of valid entries is exactly `inode.size /
+  sizeof(dir_ent_t)`, so you use the directory's inode `size` to track
+  how many entries it currently holds. `inode.size` must always be a
+  multiple of `sizeof(dir_ent_t)` (32 bytes).
+- A newly created directory has exactly two entries, `.` followed by
+  `..`, so its initial `size` is `2 * sizeof(dir_ent_t)`.
+- To add an entry, write it at the next free slot (immediately after
+  the last valid entry) and grow `inode.size` by
+  `sizeof(dir_ent_t)`. Allocate a new data block only when the
+  existing blocks have no remaining space for one more entry.
+- To remove an entry, **compact** the array by left-shifting every
+  entry that follows the removed slot into its place, then shrink
+  `inode.size` by `sizeof(dir_ent_t)`. After compaction, the last data
+  block may become unused; if so, free it. This means an `unlink`
+  inside a large directory can rewrite most of the directory's data
+  blocks, and that is expected.
+- Because entries are packed and unordered (apart from `.` and `..`
+  appearing first), lookups are a linear scan over the first
+  `inode.size` bytes of the directory's data.
+
+This layout matches what you'd see if you `xxd` a directory's data
+blocks on an example disk image: `.` and `..` first, then the user-visible
+entries, then zeros (which are not part of the directory — they are
+just the unused tail of the last data block).
+
 When your server is started, it is passed the name of the file system
 image file. The image is created by a tool we provide, called `mkfs`.
 It is pretty self-explanatory and can be found
